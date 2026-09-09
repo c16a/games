@@ -5,6 +5,7 @@ import {
   type SnakeState,
   advanceSnake,
   createInitialState,
+  interpolateSnake,
   pauseGame,
   queueDirection,
   restartGame,
@@ -23,6 +24,18 @@ function running(overrides: Partial<SnakeState> = {}): SnakeState {
 }
 
 describe("Snake movement", () => {
+  test("interpolates every segment smoothly between grid steps", () => {
+    const previous = [{ x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }];
+    const current = [{ x: 9, y: 8 }, { x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }];
+    expect(interpolateSnake(previous, current, 0)).toEqual([
+      { x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }, { x: 6, y: 8 },
+    ]);
+    expect(interpolateSnake(previous, current, 0.5)).toEqual([
+      { x: 8.5, y: 8 }, { x: 7.5, y: 8 }, { x: 6.5, y: 8 }, { x: 6, y: 8 },
+    ]);
+    expect(interpolateSnake(previous, current, 2)[0]).toEqual({ x: 9, y: 8 });
+  });
+
   test("starts centered with three cells and moves without growing", () => {
     const ready = createInitialState(() => 0);
     expect(ready.snake).toEqual([{ x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }]);

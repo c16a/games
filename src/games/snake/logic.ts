@@ -52,6 +52,18 @@ export function spawnFood(snake: readonly Cell[], random: () => number = Math.ra
   return empty[Math.floor(normalizedRandom(random) * empty.length)]!;
 }
 
+export function interpolateSnake(previous: readonly Cell[], current: readonly Cell[], progress: number): Cell[] {
+  const amount = Math.max(0, Math.min(1, progress));
+  const fallback = previous.at(-1) ?? current.at(-1) ?? { x: 0, y: 0 };
+  return current.map((cell, index) => {
+    const from = previous[index] ?? fallback;
+    return {
+      x: from.x + (cell.x - from.x) * amount,
+      y: from.y + (cell.y - from.y) * amount,
+    };
+  });
+}
+
 export function createInitialState(random: () => number = Math.random): SnakeState {
   const snake = [
     { x: 8, y: 8 },

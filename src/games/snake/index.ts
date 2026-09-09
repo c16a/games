@@ -5,6 +5,7 @@ import {
   type SnakeState,
   advanceSnake,
   createInitialState,
+  interpolateSnake,
   pauseGame,
   queueDirection,
   restartGame,
@@ -69,6 +70,8 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   let bestScore = loadBestScore(speed);
   let destroyed = false;
   let pointerStart: { id: number; x: number; y: number } | undefined;
+  let visualFromSnake = state.snake;
+  let visualProgress = 1;
 
   container.innerHTML = `
     <main class="game-page snake-page">
@@ -162,6 +165,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
 
   function drawBoard(): void {
     const cellSize = 640 / BOARD_SIZE;
+    const visualSnake = interpolateSnake(visualFromSnake, state.snake, visualProgress);
     for (let y = 0; y < BOARD_SIZE; y += 1) {
       for (let x = 0; x < BOARD_SIZE; x += 1) {
         k.drawRect({
@@ -181,8 +185,8 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       k.drawCircle({ pos: k.vec2(center.x + 6, center.y - cellSize * 0.31), radius: 5, color: k.rgb(81, 207, 102), anchor: "center" });
     }
 
-    state.snake.toReversed().forEach((cell, reversedIndex) => {
-      const index = state.snake.length - 1 - reversedIndex;
+    visualSnake.toReversed().forEach((cell, reversedIndex) => {
+      const index = visualSnake.length - 1 - reversedIndex;
       const isHead = index === 0;
       const inset = isHead ? 3 : 5;
       const position = k.vec2(cell.x * cellSize + inset, cell.y * cellSize + inset);
@@ -199,7 +203,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       }
     });
 
-    const head = state.snake[0]!;
+    const head = visualSnake[0]!;
     const centerX = (head.x + 0.5) * cellSize;
     const centerY = (head.y + 0.5) * cellSize;
     const horizontal = state.direction === "left" || state.direction === "right";
@@ -272,6 +276,8 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
 
   function restart(): void {
     state = restartGame(state);
+    visualFromSnake = state.snake;
+    visualProgress = 1;
     hideResult();
     renderState();
     canvas!.focus();
@@ -344,8 +350,14 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     if (destroyed || state.status !== "running") return;
     const previous = state;
     const stepMs = SPEEDS[speed].milliseconds;
-    state = advanceSnake(state, Math.min(k.dt() * 1000, stepMs), stepMs);
+    const frameMs = Math.min(k.dt() * 1000, stepMs);
+    visualProgress = Math.min(1, visualProgress + frameMs / stepMs);
+    state = advanceSnake(state, frameMs, stepMs);
     if (state !== previous && (state.snake[0] !== previous.snake[0] || state.status !== previous.status || state.score !== previous.score)) {
+      if (state.snake[0] !== previous.snake[0]) {
+        visualFromSnake = previous.snake;
+        visualProgress = 0;
+      }
       renderState(previous);
     }
   });
