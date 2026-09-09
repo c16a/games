@@ -1,0 +1,19 @@
+{
+  "name": "games",
+  "module": "index.ts",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun --hot ./index.ts",
+    "build": "bunx tsc --noEmit && bun build ./index.html --outdir=dist --minify --target=browser",
+    "start": "bun ./index.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  }
+}
