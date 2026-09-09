@@ -37,11 +37,19 @@ const games: GameCard[] = [
     icon: "🌈",
     accent: "#4dabf7",
   },
+  {
+    id: "2048",
+    name: "2048",
+    description: "Slide, match, and grow a mighty number!",
+    badge: "Numbers",
+    icon: "🔢",
+    accent: "#ffd43b",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 
-type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash";
+type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048";
 type Route = "home" | GameId;
 
 const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
@@ -49,6 +57,7 @@ const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
   "glow-grid": () => import("./games/glow-grid"),
   "tower-tangle": () => import("./games/tower-tangle"),
   "color-dash": () => import("./games/color-dash"),
+  "2048": () => import("./games/2048"),
 };
 
 function isGameId(value: string): value is GameId {
