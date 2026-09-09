@@ -1115,76 +1115,28 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   border-radius: 30px;
   box-shadow: 8px 9px 0 var(--ink);
 }
-.twenty-board {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(6px, 1.8vw, 12px);
+.twenty-board-shell {
   width: min(500px, 100%);
   aspect-ratio: 1;
   margin: 0 auto;
-  padding: clamp(8px, 2vw, 14px);
-  touch-action: none;
   background: #6f5a52;
   border: 4px solid var(--ink);
   border-radius: clamp(18px, 4vw, 28px);
   box-shadow: inset 0 5px 0 rgba(255,255,255,.14), 6px 7px 0 rgba(36,31,69,.18);
   overflow: hidden;
+}
+.twenty-canvas {
+  display: block;
+  width: 100% !important;
+  max-width: 100%;
+  height: auto !important;
+  aspect-ratio: 1;
+  touch-action: none;
   user-select: none;
   cursor: grab;
 }
-.twenty-board:focus-visible { outline: 5px solid #38bdf8; outline-offset: 5px; }
-.twenty-cell {
-  display: grid;
-  place-items: center;
-  min-width: 0;
-  aspect-ratio: 1;
-  color: #2e2642;
-  background: #f8e6ca;
-  border: 2px solid rgba(36,31,69,.78);
-  border-radius: clamp(9px, 2.5vw, 17px);
-  box-shadow: inset 0 4px 0 rgba(255,255,255,.3);
-  overflow: hidden;
-  transition: transform .14s ease-out;
-  will-change: transform;
-}
-.twenty-cell span {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  font-size: clamp(1.1rem, 6vw, 2.5rem);
-  font-weight: 950;
-  letter-spacing: -.05em;
-}
-.twenty-board--dragging { cursor: grabbing; }
-.twenty-board--dragging .twenty-cell:not(.tile-empty) {
-  transform: translate3d(var(--drag-x, 0), var(--drag-y, 0), 0) scale(.98);
-  transition: none;
-}
-.twenty-cell--waiting { visibility: hidden; }
-.twenty-cell--ghost {
-  position: fixed;
-  z-index: 30;
-  margin: 0;
-  pointer-events: none;
-  transform-origin: center;
-}
-.twenty-cell--merged span { animation: tileMerge .34s cubic-bezier(.2, .9, .3, 1.35); }
-.twenty-cell--spawned span { animation: tileAppear .25s ease-out; }
-.tile-empty { background: rgba(255,255,255,.18); border-color: rgba(36,31,69,.28); box-shadow: none; }
-.tile-2 { background: #fff3bf; }
-.tile-4 { background: #ffe066; }
-.tile-8 { color: #fff; background: #ff922b; }
-.tile-16 { color: #fff; background: #f76707; }
-.tile-32 { color: #fff; background: #f03e3e; }
-.tile-64 { color: #fff; background: #d6336c; }
-.tile-128 { color: #fff; background: #9c36b5; }
-.tile-256 { color: #fff; background: #7048e8; }
-.tile-512 { color: #fff; background: #4263eb; }
-.tile-1024 { color: #fff; background: #1971c2; }
-.tile-2048 { color: #2e2642; background: linear-gradient(135deg, #fff3bf, #ffd43b); box-shadow: inset 0 4px 0 rgba(255,255,255,.55), 0 0 18px #ffd43b; }
-.tile-super { color: #fff; background: #173b42; }
-.tile-1024 span, .tile-2048 span, .tile-super span { font-size: clamp(.9rem, 5vw, 1.9rem); }
+.twenty-canvas:active { cursor: grabbing; }
+.twenty-canvas:focus-visible { outline: 5px solid #38bdf8; outline-offset: -7px; border-radius: clamp(14px, 3vw, 24px); }
 .twenty-message { min-height: 25px; margin: 17px 0 12px; color: #635d7c; text-align: center; font-size: .9rem; font-weight: 800; }
 .twenty-directions {
   display: grid;
@@ -1231,8 +1183,6 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 @keyframes hintWiggle { from { transform: rotate(-3deg) scale(1.02); } to { transform: rotate(3deg) scale(1.06); } }
 @keyframes towerPulse { to { background: rgba(255,255,255,.56); transform: scale(.98); } }
 @keyframes towerShake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-@keyframes tileMerge { 0% { transform: scale(.78); } 58% { transform: scale(1.24); } 100% { transform: scale(1); } }
-@keyframes tileAppear { from { transform: scale(.35) rotate(-7deg); opacity: 0; } }
 
 @media (max-width: 760px) {
   .picker-page { padding: 18px 16px 40px; }
@@ -1324,8 +1274,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .twenty-mission .mission-copy { display: none; }
   .twenty-scores { grid-template-columns: repeat(2, 1fr); }
   .twenty-workspace { padding: 10px; border-radius: 23px; }
-  .twenty-board { gap: 6px; padding: 7px; border-radius: 19px; }
-  .twenty-cell { border-radius: 10px; }
+  .twenty-board-shell { border-radius: 19px; }
   .twenty-directions button { min-height: 45px; }
   .snake-mission { grid-template-columns: auto 1fr; padding: 12px; gap: 10px; }
   .snake-mission-icon { width: 48px; height: 48px; border-radius: 15px; font-size: 1.65rem; }

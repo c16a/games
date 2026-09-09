@@ -14,6 +14,33 @@ import {
 
 const BEST_SCORE_KEY = "happy-arcade:2048-best-score";
 const DIRECTIONS: readonly Direction[] = ["up", "left", "down", "right"];
+const CANVAS_SIZE = 640;
+const BOARD_PADDING = 18;
+const CELL_GAP = 12;
+const CELL_SIZE = (CANVAS_SIZE - BOARD_PADDING * 2 - CELL_GAP * (BOARD_SIZE - 1)) / BOARD_SIZE;
+
+const TILE_COLORS: Record<number, readonly [number, number, number]> = {
+  2: [255, 243, 191],
+  4: [255, 224, 102],
+  8: [255, 146, 43],
+  16: [247, 103, 7],
+  32: [240, 62, 62],
+  64: [214, 51, 108],
+  128: [156, 54, 181],
+  256: [112, 72, 232],
+  512: [66, 99, 235],
+  1024: [25, 113, 194],
+  2048: [255, 212, 59],
+};
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+type BoardAnimation =
+  | { phase: "slide"; result: TurnResult; elapsed: number; duration: number; startOffset: Point }
+  | { phase: "pop"; result: TurnResult; elapsed: number; duration: number };
 
 function loadBestScore(): number {
   try {
@@ -32,28 +59,44 @@ function saveBestScore(score: number): void {
   }
 }
 
-function tileClass(value: number): string {
-  if (value === 0) return "tile-empty";
-  if (value > 2048) return "tile-super";
-  return `tile-${value}`;
-}
-
 function boardSummary(board: Board): string {
   return board.map((value) => value || "empty").join(", ");
 }
 
-export function mount({ container, exit }: GameContext): GameInstance {
+function cellPosition(index: number): Point {
+  return {
+    x: BOARD_PADDING + (index % BOARD_SIZE) * (CELL_SIZE + CELL_GAP),
+    y: BOARD_PADDING + Math.floor(index / BOARD_SIZE) * (CELL_SIZE + CELL_GAP),
+  };
+}
+
+function easeOutCubic(value: number): number {
+  return 1 - (1 - value) ** 3;
+}
+
+function tileFontSize(value: number): number {
+  const digits = String(value).length;
+  if (digits <= 2) return 58;
+  if (digits === 3) return 49;
+  if (digits === 4) return 40;
+  return 31;
+}
+
+function usesDarkText(value: number): boolean {
+  return value <= 4 || value === 2048;
+}
+
+export async function mount({ container, exit }: GameContext): Promise<GameInstance> {
+  const { default: kaplay } = await import("kaplay");
   let state: GameState = createInitialState();
   let bestScore = loadBestScore();
   let winCelebrated = false;
   let gameOver = false;
-  let outcomePending = false;
-  let moveAnimating = false;
+  let destroyed = false;
+  let animation: BoardAnimation | undefined;
   let pointerStart: { id: number; x: number; y: number } | undefined;
-  let outcomeTimer: number | undefined;
-  let animationRun = 0;
-  const activeAnimations = new Set<Animation>();
-  const animationGhosts = new Set<HTMLElement>();
+  let dragOffset: Point = { x: 0, y: 0 };
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   container.innerHTML = `
     <main class="game-page twenty-page">
@@ -80,13 +123,18 @@ export function mount({ container, exit }: GameContext): GameInstance {
         </div>
 
         <div class="twenty-workspace">
-          <div
-            class="twenty-board"
-            data-2048-board
-            role="grid"
-            tabindex="0"
-            aria-label="2048 board. Swipe or use arrow keys to move tiles."
-          ></div>
+          <div class="twenty-board-shell">
+            <canvas
+              class="twenty-canvas"
+              data-2048-canvas
+              width="${CANVAS_SIZE}"
+              height="${CANVAS_SIZE}"
+              role="img"
+              tabindex="0"
+              aria-label="2048 board. Swipe or use arrow keys to move tiles."
+            ></canvas>
+          </div>
+          <p class="visually-hidden" data-2048-summary>${boardSummary(state.board)}</p>
 
           <p class="twenty-message" data-2048-message aria-live="polite">Join matching tiles and build the biggest number you can!</p>
 
@@ -107,176 +155,136 @@ export function mount({ container, exit }: GameContext): GameInstance {
       <div class="celebration" data-2048-result aria-live="assertive" hidden></div>
     </main>`;
 
-  const boardElement = container.querySelector<HTMLElement>("[data-2048-board]");
+  const canvas = container.querySelector<HTMLCanvasElement>("[data-2048-canvas]");
   const scoreElement = container.querySelector<HTMLElement>("[data-2048-score]");
   const bestElement = container.querySelector<HTMLElement>("[data-2048-best]");
+  const summaryElement = container.querySelector<HTMLElement>("[data-2048-summary]");
   const messageElement = container.querySelector<HTMLElement>("[data-2048-message]");
   const undoButton = container.querySelector<HTMLButtonElement>('[data-2048-action="undo"]');
   const resultElement = container.querySelector<HTMLElement>("[data-2048-result]");
 
-  if (!boardElement || !scoreElement || !bestElement || !messageElement || !undoButton || !resultElement) {
+  if (!canvas || !scoreElement || !bestElement || !summaryElement || !messageElement || !undoButton || !resultElement) {
     throw new Error("2048 UI could not be created");
   }
 
-  function updateBestScore(): void {
-    if (state.score <= bestScore) return;
-    bestScore = state.score;
-    bestElement!.textContent = String(bestScore);
-    saveBestScore(bestScore);
+  const k = kaplay({
+    global: false,
+    canvas,
+    width: CANVAS_SIZE,
+    height: CANVAS_SIZE,
+    background: [111, 90, 82],
+    crisp: true,
+    debug: false,
+    focus: false,
+    touchToMouse: false,
+  });
+  canvas.classList.add("twenty-canvas");
+
+  function tileColor(value: number): ReturnType<typeof k.rgb> {
+    const [red, green, blue] = TILE_COLORS[value] ?? [23, 59, 66];
+    return k.rgb(red, green, blue);
   }
 
-  function clearBoardMotion(): void {
-    animationRun += 1;
-    activeAnimations.forEach((animation) => animation.cancel());
-    animationGhosts.forEach((ghost) => ghost.remove());
-    activeAnimations.clear();
-    animationGhosts.clear();
-    moveAnimating = false;
-    boardElement!.classList.remove(
-      "twenty-board--dragging",
-    );
-    boardElement!.style.removeProperty("--drag-x");
-    boardElement!.style.removeProperty("--drag-y");
+  function drawTile(value: number, position: Point, scale = 1, opacity = 1): void {
+    const size = CELL_SIZE * scale;
+    const inset = (CELL_SIZE - size) / 2;
+    const x = position.x + inset;
+    const y = position.y + inset;
+    const radius = Math.max(9, 18 * scale);
+
+    k.drawRect({ pos: k.vec2(x + 5 * scale, y + 6 * scale), width: size, height: size, radius, color: k.rgb(36, 31, 69), opacity: opacity * 0.28 });
+    k.drawRect({
+      pos: k.vec2(x, y),
+      width: size,
+      height: size,
+      radius,
+      color: tileColor(value),
+      opacity,
+      outline: { width: Math.max(2, 3 * scale), color: k.rgb(36, 31, 69) },
+    });
+    k.drawRect({
+      pos: k.vec2(x + 11 * scale, y + 9 * scale),
+      width: Math.max(0, size - 22 * scale),
+      height: Math.max(3, 7 * scale),
+      radius: 4,
+      color: k.rgb(255, 255, 255),
+      opacity: opacity * (value === 2048 ? 0.52 : 0.3),
+    });
+    k.drawText({
+      text: String(value),
+      pos: k.vec2(position.x + CELL_SIZE / 2, position.y + CELL_SIZE / 2 + 2),
+      size: tileFontSize(value) * scale,
+      font: "sans-serif",
+      color: usesDarkText(value) ? k.rgb(46, 38, 66) : k.rgb(255, 255, 255),
+      opacity,
+      anchor: "center",
+    });
   }
 
-  function clearPendingOutcome(): void {
-    if (outcomeTimer !== undefined) window.clearTimeout(outcomeTimer);
-    outcomeTimer = undefined;
-    outcomePending = false;
-  }
+  function drawBoard(): void {
+    for (let index = 0; index < BOARD_SIZE * BOARD_SIZE; index += 1) {
+      const position = cellPosition(index);
+      k.drawRect({
+        pos: k.vec2(position.x, position.y),
+        width: CELL_SIZE,
+        height: CELL_SIZE,
+        radius: 18,
+        color: k.rgb(139, 119, 109),
+        outline: { width: 2, color: k.rgb(74, 61, 68) },
+      });
+    }
 
-  function afterMoveAnimation(action: () => void): void {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      action();
+    if (animation?.phase === "slide") {
+      const progress = easeOutCubic(Math.min(1, animation.elapsed / animation.duration));
+      for (const motion of animation.result.motions) {
+        const from = cellPosition(motion.from);
+        const to = cellPosition(motion.to);
+        drawTile(motion.value, {
+          x: from.x + animation.startOffset.x * (1 - progress) + (to.x - from.x) * progress,
+          y: from.y + animation.startOffset.y * (1 - progress) + (to.y - from.y) * progress,
+        }, motion.merged ? 1 - progress * 0.08 : 1);
+      }
       return;
     }
-    outcomePending = true;
-    outcomeTimer = window.setTimeout(() => {
-      outcomeTimer = undefined;
-      outcomePending = false;
-      action();
-    }, 330);
+
+    const merged = animation?.phase === "pop" ? new Set(animation.result.mergedIndices) : undefined;
+    const spawned = animation?.phase === "pop" ? animation.result.spawnedIndex : undefined;
+    const popProgress = animation?.phase === "pop" ? Math.min(1, animation.elapsed / animation.duration) : 1;
+
+    state.board.forEach((value, index) => {
+      if (value === 0) return;
+      let scale = 1;
+      let opacity = 1;
+      if (index === spawned) {
+        scale = 0.25 + 0.75 * easeOutCubic(popProgress);
+        opacity = popProgress;
+      } else if (merged?.has(index)) {
+        scale = popProgress < 0.55
+          ? 1 + (popProgress / 0.55) * 0.22
+          : 1.22 - ((popProgress - 0.55) / 0.45) * 0.22;
+      }
+      const position = cellPosition(index);
+      drawTile(value, {
+        x: position.x + (animation ? 0 : dragOffset.x),
+        y: position.y + (animation ? 0 : dragOffset.y),
+      }, scale, opacity);
+    });
   }
 
-  function renderBoard(effects?: { mergedIndices?: number[]; spawnedIndex?: number; hiddenIndices?: number[] }): void {
-    const mergedIndices = new Set(effects?.mergedIndices ?? []);
-    const hiddenIndices = new Set(effects?.hiddenIndices ?? []);
-    boardElement!.innerHTML = state.board.map((value, index) => {
-      const row = Math.floor(index / BOARD_SIZE) + 1;
-      const column = index % BOARD_SIZE + 1;
-      const mergedClass = mergedIndices.has(index) ? " twenty-cell--merged" : "";
-      const spawnedClass = effects?.spawnedIndex === index ? " twenty-cell--spawned" : "";
-      const hiddenClass = hiddenIndices.has(index) ? " twenty-cell--waiting" : "";
-      return `
-        <div
-          class="twenty-cell ${tileClass(value)}${mergedClass}${spawnedClass}${hiddenClass}"
-          role="gridcell"
-          aria-label="Row ${row}, column ${column}: ${value === 0 ? "empty" : value}"
-        >${value === 0 ? "" : `<span>${value}</span>`}</div>`;
-    }).join("");
-    boardElement!.setAttribute("aria-description", boardSummary(state.board));
+  function updateInterface(): void {
+    if (state.score > bestScore) {
+      bestScore = state.score;
+      saveBestScore(bestScore);
+    }
     scoreElement!.textContent = String(state.score);
     bestElement!.textContent = String(bestScore);
-    undoButton!.disabled = !state.undo || gameOver;
-  }
-
-  interface TileVisual {
-    rect: DOMRect;
-    ghost: HTMLElement;
-  }
-
-  function captureTileVisuals(): Array<TileVisual | undefined> {
-    return [...boardElement!.querySelectorAll<HTMLElement>(".twenty-cell")].map((cell) => {
-      if (cell.classList.contains("tile-empty")) return undefined;
-      const ghost = cell.cloneNode(true) as HTMLElement;
-      ghost.classList.remove("twenty-cell--merged", "twenty-cell--spawned", "twenty-cell--waiting");
-      ghost.classList.add("twenty-cell--ghost");
-      ghost.setAttribute("aria-hidden", "true");
-      return { rect: cell.getBoundingClientRect(), ghost };
-    });
-  }
-
-  function finishTurnOutcome(result: TurnResult): void {
-    if (result.created2048 && !winCelebrated) afterMoveAnimation(showWin);
-    else if (!canMove(state.board)) afterMoveAnimation(showGameOver);
-  }
-
-  function animateTurn(result: TurnResult, sources: Array<TileVisual | undefined>): void {
-    clearBoardMotion();
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const moving = result.motions.filter((motion) => motion.from !== motion.to || motion.merged);
-
-    if (reducedMotion || moving.length === 0) {
-      renderBoard({ mergedIndices: result.mergedIndices, spawnedIndex: result.spawnedIndex });
-      finishTurnOutcome(result);
-      return;
-    }
-
-    moveAnimating = true;
-    const hiddenIndices = [...new Set([...moving.map(({ to }) => to), result.spawnedIndex].filter((index): index is number => index !== undefined))];
-    renderBoard({ hiddenIndices });
-    const targets = [...boardElement!.querySelectorAll<HTMLElement>(".twenty-cell")].map((cell) => cell.getBoundingClientRect());
-    const run = animationRun;
-    const animations: Animation[] = [];
-
-    for (const motion of moving) {
-      const source = sources[motion.from];
-      const target = targets[motion.to];
-      if (!source || !target) continue;
-
-      const ghost = source.ghost;
-      Object.assign(ghost.style, {
-        left: `${source.rect.left}px`,
-        top: `${source.rect.top}px`,
-        width: `${source.rect.width}px`,
-        height: `${source.rect.height}px`,
-      });
-      document.body.append(ghost);
-      animationGhosts.add(ghost);
-
-      const columns = Math.abs((motion.from % BOARD_SIZE) - (motion.to % BOARD_SIZE));
-      const rows = Math.abs(Math.floor(motion.from / BOARD_SIZE) - Math.floor(motion.to / BOARD_SIZE));
-      const distance = Math.max(columns, rows);
-      const animation = ghost.animate([
-        { transform: "translate3d(0, 0, 0) scale(1)" },
-        {
-          transform: `translate3d(${target.left - source.rect.left}px, ${target.top - source.rect.top}px, 0) scale(${motion.merged ? 0.92 : 1})`,
-        },
-      ], {
-        duration: 145 + distance * 55,
-        easing: "cubic-bezier(.2, .82, .25, 1)",
-        fill: "forwards",
-      });
-      activeAnimations.add(animation);
-      animations.push(animation);
-    }
-
-    Promise.all(animations.map((animation) => animation.finished.catch(() => undefined))).then(() => {
-      if (run !== animationRun) return;
-      activeAnimations.clear();
-      animationGhosts.forEach((ghost) => ghost.remove());
-      animationGhosts.clear();
-      moveAnimating = false;
-      renderBoard({ mergedIndices: result.mergedIndices, spawnedIndex: result.spawnedIndex });
-      finishTurnOutcome(result);
-    });
+    summaryElement!.textContent = boardSummary(state.board);
+    undoButton!.disabled = !state.undo || gameOver || Boolean(animation);
   }
 
   function hideResult(): void {
     resultElement!.hidden = true;
     resultElement!.innerHTML = "";
-  }
-
-  function newGame(): void {
-    clearPendingOutcome();
-    clearBoardMotion();
-    state = createInitialState();
-    winCelebrated = false;
-    gameOver = false;
-    hideResult();
-    messageElement!.textContent = "Join matching tiles and build the biggest number you can!";
-    renderBoard();
-    boardElement!.focus();
   }
 
   function showWin(): void {
@@ -298,7 +306,7 @@ export function mount({ container, exit }: GameContext): GameInstance {
 
   function showGameOver(): void {
     gameOver = true;
-    undoButton!.disabled = true;
+    updateInterface();
     resultElement!.hidden = false;
     resultElement!.innerHTML = `
       <div class="result-card twenty-result-card" role="dialog" aria-modal="true" aria-labelledby="2048-over-title">
@@ -314,45 +322,79 @@ export function mount({ container, exit }: GameContext): GameInstance {
     resultElement!.querySelector<HTMLButtonElement>('[data-2048-result-action="new"]')?.focus();
   }
 
-  function move(direction: Direction, capturedSources?: Array<TileVisual | undefined>): void {
-    if (gameOver || moveAnimating || outcomePending || !resultElement!.hidden) return;
-    const sources = capturedSources ?? captureTileVisuals();
-    const result = takeTurn(state, direction);
+  function finishTurn(result: TurnResult): void {
+    updateInterface();
+    if (result.created2048 && !winCelebrated) showWin();
+    else if (!canMove(state.board)) showGameOver();
+  }
 
+  function beginAnimation(result: TurnResult, startOffset: Point): void {
+    if (reducedMotion) {
+      animation = undefined;
+      finishTurn(result);
+      return;
+    }
+    const distance = Math.max(...result.motions.map((motion) => {
+      const columns = Math.abs((motion.from % BOARD_SIZE) - (motion.to % BOARD_SIZE));
+      const rows = Math.abs(Math.floor(motion.from / BOARD_SIZE) - Math.floor(motion.to / BOARD_SIZE));
+      return Math.max(columns, rows);
+    }));
+    animation = { phase: "slide", result, elapsed: 0, duration: 0.13 + distance * 0.055, startOffset };
+    updateInterface();
+  }
+
+  function move(direction: Direction, startOffset: Point = { x: 0, y: 0 }): void {
+    if (gameOver || animation || !resultElement!.hidden) return;
+    const result = takeTurn(state, direction);
     if (!result.moved) {
       messageElement!.textContent = "Those tiles cannot move that way—try another direction!";
       return;
     }
 
     state = result.state;
-    updateBestScore();
     messageElement!.textContent = result.scoreGained > 0
       ? `Nice match! +${result.scoreGained} points.`
       : "Smooth slide! Look for a matching pair.";
-    animateTurn(result, sources);
+    beginAnimation(result, startOffset);
+  }
+
+  function newGame(): void {
+    state = createInitialState();
+    winCelebrated = false;
+    gameOver = false;
+    animation = undefined;
+    pointerStart = undefined;
+    dragOffset = { x: 0, y: 0 };
+    hideResult();
+    messageElement!.textContent = "Join matching tiles and build the biggest number you can!";
+    updateInterface();
+    canvas!.focus();
   }
 
   function undo(): void {
-    if (!state.undo || gameOver || moveAnimating || outcomePending || !resultElement!.hidden) return;
-    clearBoardMotion();
+    if (!state.undo || gameOver || animation || !resultElement!.hidden) return;
     state = undoTurn(state);
+    dragOffset = { x: 0, y: 0 };
     messageElement!.textContent = "Last move undone. Choose your next slide!";
-    renderBoard();
-    boardElement!.focus();
+    updateInterface();
+    canvas!.focus();
   }
 
   function continuePlaying(): void {
     hideResult();
     messageElement!.textContent = "Amazing! How high can you climb?";
     if (!canMove(state.board)) showGameOver();
-    else boardElement!.focus();
+    else canvas!.focus();
   }
 
-  function onClick(event: Event): void {
-    const target = event.target as HTMLElement;
-    const direction = target.closest<HTMLButtonElement>("[data-2048-direction]")?.dataset["2048Direction"] as Direction | undefined;
-    const action = target.closest<HTMLButtonElement>("[data-2048-action]")?.dataset["2048Action"];
-    const resultAction = target.closest<HTMLButtonElement>("[data-2048-result-action]")?.dataset["2048ResultAction"];
+  function onClick(event: MouseEvent): void {
+    const target = event.target instanceof Element
+      ? event.target.closest<HTMLElement>("[data-2048-action], [data-2048-direction], [data-2048-result-action]")
+      : null;
+    if (!target) return;
+    const direction = target.dataset["2048Direction"] as Direction | undefined;
+    const action = target.dataset["2048Action"];
+    const resultAction = target.dataset["2048ResultAction"];
 
     if (direction && DIRECTIONS.includes(direction)) move(direction);
     else if (action === "exit" || resultAction === "exit") exit();
@@ -362,19 +404,11 @@ export function mount({ container, exit }: GameContext): GameInstance {
   }
 
   function onKeyDown(event: KeyboardEvent): void {
+    if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.target instanceof HTMLButtonElement || event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
     const keyDirections: Record<string, Direction | undefined> = {
-      ArrowUp: "up",
-      ArrowDown: "down",
-      ArrowLeft: "left",
-      ArrowRight: "right",
-      w: "up",
-      W: "up",
-      s: "down",
-      S: "down",
-      a: "left",
-      A: "left",
-      d: "right",
-      D: "right",
+      ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+      w: "up", W: "up", s: "down", S: "down", a: "left", A: "left", d: "right", D: "right",
     };
     const direction = keyDirections[event.key];
     if (!direction) return;
@@ -384,14 +418,15 @@ export function mount({ container, exit }: GameContext): GameInstance {
 
   function onPointerDown(event: PointerEvent): void {
     if (event.pointerType === "mouse" && event.button !== 0) return;
-    if (gameOver || moveAnimating || outcomePending || !resultElement!.hidden) return;
-    clearBoardMotion();
+    if (gameOver || animation || !resultElement!.hidden) return;
+    event.preventDefault();
     pointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
-    boardElement!.setPointerCapture(event.pointerId);
+    canvas!.setPointerCapture(event.pointerId);
   }
 
   function onPointerMove(event: PointerEvent): void {
     if (!pointerStart || pointerStart.id !== event.pointerId) return;
+    event.preventDefault();
     const deltaX = event.clientX - pointerStart.x;
     const deltaY = event.clientY - pointerStart.y;
     if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 3) return;
@@ -401,66 +436,69 @@ export function mount({ container, exit }: GameContext): GameInstance {
       ? deltaX > 0 ? "right" : "left"
       : deltaY > 0 ? "down" : "up";
     const resistance = moveBoard(state.board, direction).moved ? 1 : 0.18;
-    const maxOffset = Math.min(44, boardElement!.clientWidth * 0.12);
-    const distance = Math.max(Math.abs(deltaX), Math.abs(deltaY));
-    const scale = (distance > maxOffset ? maxOffset / distance : 1) * resistance;
-    boardElement!.style.setProperty("--drag-x", `${horizontal ? deltaX * scale : 0}px`);
-    boardElement!.style.setProperty("--drag-y", `${horizontal ? 0 : deltaY * scale}px`);
-    boardElement!.classList.add("twenty-board--dragging");
+    const scaleToCanvas = CANVAS_SIZE / canvas!.getBoundingClientRect().width;
+    const raw = (horizontal ? deltaX : deltaY) * scaleToCanvas;
+    const offset = Math.sign(raw) * Math.min(Math.abs(raw), 58) * resistance;
+    dragOffset = { x: horizontal ? offset : 0, y: horizontal ? 0 : offset };
   }
 
-  function endPointerDrag(event?: PointerEvent): { deltaX: number; deltaY: number; endedInside: boolean } | undefined {
+  function finishPointer(event?: PointerEvent): { deltaX: number; deltaY: number; startOffset: Point } | undefined {
     if (!pointerStart || (event && pointerStart.id !== event.pointerId)) return undefined;
     const start = pointerStart;
+    const startOffset = dragOffset;
     pointerStart = undefined;
-    const deltaX = event ? event.clientX - start.x : 0;
-    const deltaY = event ? event.clientY - start.y : 0;
-    const bounds = boardElement!.getBoundingClientRect();
-    const endedInside = Boolean(event)
-      && event!.clientX >= bounds.left
-      && event!.clientX <= bounds.right
-      && event!.clientY >= bounds.top
-      && event!.clientY <= bounds.bottom;
-    boardElement!.classList.remove("twenty-board--dragging");
-    boardElement!.style.removeProperty("--drag-x");
-    boardElement!.style.removeProperty("--drag-y");
-    return { deltaX, deltaY, endedInside };
+    dragOffset = { x: 0, y: 0 };
+    if (event && canvas!.hasPointerCapture(event.pointerId)) canvas!.releasePointerCapture(event.pointerId);
+    return { deltaX: event ? event.clientX - start.x : 0, deltaY: event ? event.clientY - start.y : 0, startOffset };
   }
 
   function onPointerUp(event: PointerEvent): void {
-    const sources = captureTileVisuals();
-    const drag = endPointerDrag(event);
-    if (!drag || !drag.endedInside) return;
-    const { deltaX, deltaY } = drag;
-    if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 24) return;
-    move(Math.abs(deltaX) > Math.abs(deltaY)
-      ? deltaX > 0 ? "right" : "left"
-      : deltaY > 0 ? "down" : "up", sources);
+    const drag = finishPointer(event);
+    if (!drag || Math.max(Math.abs(drag.deltaX), Math.abs(drag.deltaY)) < 24) return;
+    move(Math.abs(drag.deltaX) > Math.abs(drag.deltaY)
+      ? drag.deltaX > 0 ? "right" : "left"
+      : drag.deltaY > 0 ? "down" : "up", drag.startOffset);
   }
 
-  function onPointerCancel(): void {
-    endPointerDrag();
+  function onPointerCancel(event: PointerEvent): void {
+    finishPointer(event);
   }
+
+  k.onDraw(drawBoard);
+  k.onUpdate(() => {
+    if (destroyed || !animation) return;
+    animation.elapsed += Math.min(k.dt(), 1 / 20);
+    if (animation.elapsed < animation.duration) return;
+
+    if (animation.phase === "slide") {
+      animation = { phase: "pop", result: animation.result, elapsed: 0, duration: 0.24 };
+    } else {
+      const result = animation.result;
+      animation = undefined;
+      finishTurn(result);
+    }
+  });
 
   container.addEventListener("click", onClick);
   window.addEventListener("keydown", onKeyDown);
-  boardElement.addEventListener("pointerdown", onPointerDown);
-  boardElement.addEventListener("pointermove", onPointerMove);
-  boardElement.addEventListener("pointerup", onPointerUp);
-  boardElement.addEventListener("pointercancel", onPointerCancel);
-  renderBoard();
+  canvas.addEventListener("pointerdown", onPointerDown);
+  canvas.addEventListener("pointermove", onPointerMove);
+  canvas.addEventListener("pointerup", onPointerUp);
+  canvas.addEventListener("pointercancel", onPointerCancel);
+  updateInterface();
 
   return {
-    destroy() {
+    destroy(): void {
+      destroyed = true;
+      animation = undefined;
       pointerStart = undefined;
-      clearPendingOutcome();
-      clearBoardMotion();
       container.removeEventListener("click", onClick);
       window.removeEventListener("keydown", onKeyDown);
-      boardElement.removeEventListener("pointerdown", onPointerDown);
-      boardElement.removeEventListener("pointermove", onPointerMove);
-      boardElement.removeEventListener("pointerup", onPointerUp);
-      boardElement.removeEventListener("pointercancel", onPointerCancel);
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerCancel);
+      k.quit();
       container.innerHTML = "";
     },
   };
