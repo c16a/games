@@ -43,7 +43,7 @@ Add a bright, kid-friendly version of classic Breakout. Players move a paddle to
 
 - Put the module in `src/games/breakout/` and export `mount()` implementing the `GameModule` contract from `src/platform/game.ts`.
 - Register its card and dynamic loader in `src/main.ts`; preserve existing game entries and load Breakout only when selected.
-- Use Canvas 2D with semantic HTML controls, CSS, and TypeScript. Do not add dependencies or a game engine.
+- Use KAPLAY for the game loop and canvas rendering, with semantic HTML controls around the canvas. Keep KAPLAY dynamically loaded with the Breakout module.
 - Separate simulation state, collision resolution, scoring, lives, and paddle input from drawing. Make physics testable using explicit time steps and deterministic initial conditions.
 - Own all animation frames and listeners within the mounted instance. `destroy()` must cancel the loop, remove window/document/pointer/keyboard listeners, release held input, and remove the game surface.
 - Follow the repository's Bun commands and contributor instructions.

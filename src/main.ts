@@ -53,11 +53,19 @@ const games: GameCard[] = [
     icon: "🐍",
     accent: "#51cf66",
   },
+  {
+    id: "breakout",
+    name: "Breakout",
+    description: "Bounce, aim, and smash the rainbow brick wall!",
+    badge: "Reflexes",
+    icon: "🧱",
+    accent: "#ff6b6b",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 
-type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake";
+type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout";
 type Route = "home" | GameId;
 
 const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
@@ -67,6 +75,7 @@ const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
   "color-dash": () => import("./games/color-dash"),
   "2048": () => import("./games/2048"),
   snake: () => import("./games/snake"),
+  breakout: () => import("./games/breakout"),
 };
 
 function isGameId(value: string): value is GameId {
