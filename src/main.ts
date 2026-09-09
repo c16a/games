@@ -85,12 +85,20 @@ const games: GameCard[] = [
     icon: "🛸",
     accent: "#22b8cf",
   },
+  {
+    id: "endless-voyage",
+    name: "Endless Voyage",
+    description: "Choose each day and fill a journal with discoveries!",
+    badge: "Story",
+    icon: "🧭",
+    accent: "#e8590c",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 let kaplayPreloadScheduled = false;
 
-type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris" | "lunar-lander" | "space-shooter";
+type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris" | "lunar-lander" | "space-shooter" | "endless-voyage";
 type Route = "home" | GameId;
 
 const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
@@ -104,6 +112,7 @@ const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
   tetris: () => import("./games/tetris"),
   "lunar-lander": () => import("./games/lunar-lander"),
   "space-shooter": () => import("./games/space-shooter"),
+  "endless-voyage": () => import("./games/endless-voyage"),
 };
 
 function isGameId(value: string): value is GameId {
@@ -211,6 +220,7 @@ async function renderGame(gameId: GameId): Promise<void> {
 }
 
 async function renderRoute(): Promise<void> {
+  window.scrollTo(0, 0);
   const route = window.location.hash.slice(1);
   if (isGameId(route)) await renderGame(route);
   else renderPicker();
