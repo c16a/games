@@ -13,11 +13,31 @@ const games: GameCard[] = [
     icon: "🧠",
     accent: "#ff4f81",
   },
+  {
+    id: "glow-grid",
+    name: "Glow Grid",
+    description: "Switch off every light using clever moves!",
+    badge: "Logic",
+    icon: "💡",
+    accent: "#20c997",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 
-function navigate(route: "home" | "mastermind"): void {
+type GameId = "mastermind" | "glow-grid";
+type Route = "home" | GameId;
+
+const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
+  mastermind: () => import("./games/mastermind"),
+  "glow-grid": () => import("./games/glow-grid"),
+};
+
+function isGameId(value: string): value is GameId {
+  return value in gameLoaders;
+}
+
+function navigate(route: Route): void {
   window.location.hash = route === "home" ? "" : route;
   if (route === "home" && !window.location.hash) void renderRoute();
 }
@@ -73,14 +93,20 @@ function renderPicker(): void {
       </section>
     </main>`;
 
-  app.querySelector<HTMLElement>('[data-game="mastermind"]')?.addEventListener("click", () => navigate("mastermind"));
+  app.querySelectorAll<HTMLElement>("[data-game]").forEach((card) => {
+    card.addEventListener("click", () => {
+      const gameId = card.dataset.game;
+      if (gameId && isGameId(gameId)) navigate(gameId);
+    });
+  });
 }
 
-async function renderGame(): Promise<void> {
+async function renderGame(gameId: GameId): Promise<void> {
   activeGame?.destroy();
   app.innerHTML = '<div class="loading-game" role="status"><span>★</span><p>Getting your game ready…</p></div>';
-  document.title = "Mastermind · Happy Arcade";
-  const module = await import("./games/mastermind") as GameModule;
+  const game = games.find(({ id }) => id === gameId);
+  document.title = `${game?.name ?? "Game"} · Happy Arcade`;
+  const module = await gameLoaders[gameId]();
   activeGame = await module.mount({
     container: app,
     exit: () => navigate("home"),
@@ -88,7 +114,8 @@ async function renderGame(): Promise<void> {
 }
 
 async function renderRoute(): Promise<void> {
-  if (window.location.hash === "#mastermind") await renderGame();
+  const route = window.location.hash.slice(1);
+  if (isGameId(route)) await renderGame(route);
   else renderPicker();
 }
 
