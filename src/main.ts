@@ -29,17 +29,26 @@ const games: GameCard[] = [
     icon: "🗼",
     accent: "#ff922b",
   },
+  {
+    id: "color-dash",
+    name: "Color Dash",
+    description: "Outsmart the words and race the clock!",
+    badge: "Reflex",
+    icon: "🌈",
+    accent: "#4dabf7",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 
-type GameId = "mastermind" | "glow-grid" | "tower-tangle";
+type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash";
 type Route = "home" | GameId;
 
 const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
   mastermind: () => import("./games/mastermind"),
   "glow-grid": () => import("./games/glow-grid"),
   "tower-tangle": () => import("./games/tower-tangle"),
+  "color-dash": () => import("./games/color-dash"),
 };
 
 function isGameId(value: string): value is GameId {
