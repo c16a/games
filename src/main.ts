@@ -21,16 +21,25 @@ const games: GameCard[] = [
     icon: "💡",
     accent: "#20c997",
   },
+  {
+    id: "tower-tangle",
+    name: "Tower Tangle",
+    description: "Move the whole tower with clever planning!",
+    badge: "Strategy",
+    icon: "🗼",
+    accent: "#ff922b",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 
-type GameId = "mastermind" | "glow-grid";
+type GameId = "mastermind" | "glow-grid" | "tower-tangle";
 type Route = "home" | GameId;
 
 const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
   mastermind: () => import("./games/mastermind"),
   "glow-grid": () => import("./games/glow-grid"),
+  "tower-tangle": () => import("./games/tower-tangle"),
 };
 
 function isGameId(value: string): value is GameId {
