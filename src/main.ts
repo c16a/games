@@ -61,11 +61,19 @@ const games: GameCard[] = [
     icon: "🧱",
     accent: "#ff6b6b",
   },
+  {
+    id: "tetris",
+    name: "Tetris",
+    description: "Fit falling shapes and clear colorful lines!",
+    badge: "Spatial",
+    icon: "🧩",
+    accent: "#748ffc",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 
-type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout";
+type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris";
 type Route = "home" | GameId;
 
 const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
@@ -76,6 +84,7 @@ const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
   "2048": () => import("./games/2048"),
   snake: () => import("./games/snake"),
   breakout: () => import("./games/breakout"),
+  tetris: () => import("./games/tetris"),
 };
 
 function isGameId(value: string): value is GameId {
