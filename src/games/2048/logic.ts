@@ -13,12 +13,20 @@ export interface GameState extends Snapshot {
   undo?: Snapshot;
 }
 
+export interface TileMotion {
+  from: number;
+  to: number;
+  value: number;
+  merged: boolean;
+}
+
 export interface BoardMove {
   board: Board;
   moved: boolean;
   scoreGained: number;
   created2048: boolean;
   mergedIndices: number[];
+  motions: TileMotion[];
 }
 
 export interface TurnResult {
@@ -27,34 +35,12 @@ export interface TurnResult {
   scoreGained: number;
   created2048: boolean;
   mergedIndices: number[];
+  motions: TileMotion[];
   spawnedIndex?: number;
 }
 
 function normalizedRandom(random: () => number): number {
   return Math.min(0.999999999, Math.max(0, random()));
-}
-
-function collapseLine(line: number[]): { values: number[]; score: number; mergedOffsets: number[] } {
-  const tiles = line.filter((value) => value !== 0);
-  const values: number[] = [];
-  const mergedOffsets: number[] = [];
-  let score = 0;
-
-  for (let index = 0; index < tiles.length; index += 1) {
-    const value = tiles[index]!;
-    if (value === tiles[index + 1]) {
-      const merged = value * 2;
-      mergedOffsets.push(values.length);
-      values.push(merged);
-      score += merged;
-      index += 1;
-    } else {
-      values.push(value);
-    }
-  }
-
-  while (values.length < BOARD_SIZE) values.push(0);
-  return { values, score, mergedOffsets };
 }
 
 function lineIndices(direction: Direction, line: number): number[] {
@@ -71,18 +57,39 @@ export function hasWinningTile(board: Board): boolean {
 export function moveBoard(board: Board, direction: Direction): BoardMove {
   if (board.length !== BOARD_SIZE * BOARD_SIZE) throw new Error("A 2048 board must contain 16 cells");
 
-  const next = [...board];
+  const next = Array<number>(BOARD_SIZE * BOARD_SIZE).fill(0);
   const mergedIndices: number[] = [];
+  const motions: TileMotion[] = [];
   let scoreGained = 0;
 
   for (let line = 0; line < BOARD_SIZE; line += 1) {
     const indices = lineIndices(direction, line);
-    const collapsed = collapseLine(indices.map((index) => board[index]!));
-    scoreGained += collapsed.score;
-    collapsed.mergedOffsets.forEach((offset) => mergedIndices.push(indices[offset]!));
-    indices.forEach((boardIndex, valueIndex) => {
-      next[boardIndex] = collapsed.values[valueIndex]!;
-    });
+    const tiles = indices
+      .map((index) => ({ from: index, value: board[index]! }))
+      .filter(({ value }) => value !== 0);
+    let targetOffset = 0;
+
+    for (let tileIndex = 0; tileIndex < tiles.length; tileIndex += 1) {
+      const tile = tiles[tileIndex]!;
+      const nextTile = tiles[tileIndex + 1];
+      const to = indices[targetOffset]!;
+
+      if (nextTile && tile.value === nextTile.value) {
+        const mergedValue = tile.value * 2;
+        next[to] = mergedValue;
+        scoreGained += mergedValue;
+        mergedIndices.push(to);
+        motions.push(
+          { from: tile.from, to, value: tile.value, merged: true },
+          { from: nextTile.from, to, value: nextTile.value, merged: true },
+        );
+        tileIndex += 1;
+      } else {
+        next[to] = tile.value;
+        motions.push({ from: tile.from, to, value: tile.value, merged: false });
+      }
+      targetOffset += 1;
+    }
   }
 
   const moved = next.some((value, index) => value !== board[index]);
@@ -92,6 +99,7 @@ export function moveBoard(board: Board, direction: Direction): BoardMove {
     scoreGained,
     created2048: !hasWinningTile(board) && hasWinningTile(next),
     mergedIndices,
+    motions,
   };
 }
 
@@ -126,6 +134,7 @@ export function takeTurn(
       scoreGained: 0,
       created2048: false,
       mergedIndices: [],
+      motions: [],
     };
   }
 
@@ -142,6 +151,7 @@ export function takeTurn(
     scoreGained: move.scoreGained,
     created2048: move.created2048,
     mergedIndices: move.mergedIndices,
+    motions: move.motions,
     spawnedIndex: spawnedIndex >= 0 ? spawnedIndex : undefined,
   };
 }

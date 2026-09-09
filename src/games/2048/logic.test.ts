@@ -30,6 +30,10 @@ describe("2048 movement", () => {
     expect(result.board.slice(0, 4)).toEqual([4, 0, 0, 0]);
     expect(result.scoreGained).toBe(4);
     expect(result.mergedIndices).toEqual([0]);
+    expect(result.motions).toEqual([
+      { from: 0, to: 0, value: 2, merged: true },
+      { from: 1, to: 0, value: 2, merged: true },
+    ]);
   });
 
   test("merges multiple independent pairs", () => {
@@ -47,6 +51,14 @@ describe("2048 movement", () => {
     expect(moveBoard(horizontal, "right").mergedIndices).toEqual([3]);
     expect(moveBoard(vertical, "up").mergedIndices).toEqual([0]);
     expect(moveBoard(vertical, "down").mergedIndices).toEqual([12]);
+  });
+
+  test("reports each tile's exact travel destination", () => {
+    const start = board([2, 0, 4, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]);
+    expect(moveBoard(start, "right").motions).toEqual([
+      { from: 2, to: 3, value: 4, merged: false },
+      { from: 0, to: 2, value: 2, merged: false },
+    ]);
   });
 
   test("does not merge a newly-created tile twice", () => {
@@ -90,6 +102,7 @@ describe("2048 turns", () => {
     expect(randomCalls).toBe(0);
     expect(result.mergedIndices).toEqual([]);
     expect(result.spawnedIndex).toBeUndefined();
+    expect(result.motions).toEqual([]);
   });
 
   test("spawns deterministically into an empty cell", () => {

@@ -4,6 +4,7 @@ import {
   type Board,
   type Direction,
   type GameState,
+  type TurnResult,
   canMove,
   createInitialState,
   moveBoard,
@@ -47,9 +48,12 @@ export function mount({ container, exit }: GameContext): GameInstance {
   let winCelebrated = false;
   let gameOver = false;
   let outcomePending = false;
+  let moveAnimating = false;
   let pointerStart: { id: number; x: number; y: number } | undefined;
-  let animationTimer: number | undefined;
   let outcomeTimer: number | undefined;
+  let animationRun = 0;
+  const activeAnimations = new Set<Animation>();
+  const animationGhosts = new Set<HTMLElement>();
 
   container.innerHTML = `
     <main class="game-page twenty-page">
@@ -122,14 +126,14 @@ export function mount({ container, exit }: GameContext): GameInstance {
   }
 
   function clearBoardMotion(): void {
-    if (animationTimer !== undefined) window.clearTimeout(animationTimer);
-    animationTimer = undefined;
+    animationRun += 1;
+    activeAnimations.forEach((animation) => animation.cancel());
+    animationGhosts.forEach((ghost) => ghost.remove());
+    activeAnimations.clear();
+    animationGhosts.clear();
+    moveAnimating = false;
     boardElement!.classList.remove(
       "twenty-board--dragging",
-      "twenty-board--move-up",
-      "twenty-board--move-down",
-      "twenty-board--move-left",
-      "twenty-board--move-right",
     );
     boardElement!.style.removeProperty("--drag-x");
     boardElement!.style.removeProperty("--drag-y");
@@ -154,17 +158,18 @@ export function mount({ container, exit }: GameContext): GameInstance {
     }, 330);
   }
 
-  function renderBoard(animation?: { direction: Direction; mergedIndices: number[]; spawnedIndex?: number }): void {
-    clearBoardMotion();
-    const mergedIndices = new Set(animation?.mergedIndices ?? []);
+  function renderBoard(effects?: { mergedIndices?: number[]; spawnedIndex?: number; hiddenIndices?: number[] }): void {
+    const mergedIndices = new Set(effects?.mergedIndices ?? []);
+    const hiddenIndices = new Set(effects?.hiddenIndices ?? []);
     boardElement!.innerHTML = state.board.map((value, index) => {
       const row = Math.floor(index / BOARD_SIZE) + 1;
       const column = index % BOARD_SIZE + 1;
       const mergedClass = mergedIndices.has(index) ? " twenty-cell--merged" : "";
-      const spawnedClass = animation?.spawnedIndex === index ? " twenty-cell--spawned" : "";
+      const spawnedClass = effects?.spawnedIndex === index ? " twenty-cell--spawned" : "";
+      const hiddenClass = hiddenIndices.has(index) ? " twenty-cell--waiting" : "";
       return `
         <div
-          class="twenty-cell ${tileClass(value)}${mergedClass}${spawnedClass}"
+          class="twenty-cell ${tileClass(value)}${mergedClass}${spawnedClass}${hiddenClass}"
           role="gridcell"
           aria-label="Row ${row}, column ${column}: ${value === 0 ? "empty" : value}"
         >${value === 0 ? "" : `<span>${value}</span>`}</div>`;
@@ -173,11 +178,88 @@ export function mount({ container, exit }: GameContext): GameInstance {
     scoreElement!.textContent = String(state.score);
     bestElement!.textContent = String(bestScore);
     undoButton!.disabled = !state.undo || gameOver;
+  }
 
-    if (animation) {
-      boardElement!.classList.add(`twenty-board--move-${animation.direction}`);
-      animationTimer = window.setTimeout(() => clearBoardMotion(), 360);
+  interface TileVisual {
+    rect: DOMRect;
+    ghost: HTMLElement;
+  }
+
+  function captureTileVisuals(): Array<TileVisual | undefined> {
+    return [...boardElement!.querySelectorAll<HTMLElement>(".twenty-cell")].map((cell) => {
+      if (cell.classList.contains("tile-empty")) return undefined;
+      const ghost = cell.cloneNode(true) as HTMLElement;
+      ghost.classList.remove("twenty-cell--merged", "twenty-cell--spawned", "twenty-cell--waiting");
+      ghost.classList.add("twenty-cell--ghost");
+      ghost.setAttribute("aria-hidden", "true");
+      return { rect: cell.getBoundingClientRect(), ghost };
+    });
+  }
+
+  function finishTurnOutcome(result: TurnResult): void {
+    if (result.created2048 && !winCelebrated) afterMoveAnimation(showWin);
+    else if (!canMove(state.board)) afterMoveAnimation(showGameOver);
+  }
+
+  function animateTurn(result: TurnResult, sources: Array<TileVisual | undefined>): void {
+    clearBoardMotion();
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const moving = result.motions.filter((motion) => motion.from !== motion.to || motion.merged);
+
+    if (reducedMotion || moving.length === 0) {
+      renderBoard({ mergedIndices: result.mergedIndices, spawnedIndex: result.spawnedIndex });
+      finishTurnOutcome(result);
+      return;
     }
+
+    moveAnimating = true;
+    const hiddenIndices = [...new Set([...moving.map(({ to }) => to), result.spawnedIndex].filter((index): index is number => index !== undefined))];
+    renderBoard({ hiddenIndices });
+    const targets = [...boardElement!.querySelectorAll<HTMLElement>(".twenty-cell")].map((cell) => cell.getBoundingClientRect());
+    const run = animationRun;
+    const animations: Animation[] = [];
+
+    for (const motion of moving) {
+      const source = sources[motion.from];
+      const target = targets[motion.to];
+      if (!source || !target) continue;
+
+      const ghost = source.ghost;
+      Object.assign(ghost.style, {
+        left: `${source.rect.left}px`,
+        top: `${source.rect.top}px`,
+        width: `${source.rect.width}px`,
+        height: `${source.rect.height}px`,
+      });
+      document.body.append(ghost);
+      animationGhosts.add(ghost);
+
+      const columns = Math.abs((motion.from % BOARD_SIZE) - (motion.to % BOARD_SIZE));
+      const rows = Math.abs(Math.floor(motion.from / BOARD_SIZE) - Math.floor(motion.to / BOARD_SIZE));
+      const distance = Math.max(columns, rows);
+      const animation = ghost.animate([
+        { transform: "translate3d(0, 0, 0) scale(1)" },
+        {
+          transform: `translate3d(${target.left - source.rect.left}px, ${target.top - source.rect.top}px, 0) scale(${motion.merged ? 0.92 : 1})`,
+        },
+      ], {
+        duration: 145 + distance * 55,
+        easing: "cubic-bezier(.2, .82, .25, 1)",
+        fill: "forwards",
+      });
+      activeAnimations.add(animation);
+      animations.push(animation);
+    }
+
+    Promise.all(animations.map((animation) => animation.finished.catch(() => undefined))).then(() => {
+      if (run !== animationRun) return;
+      activeAnimations.clear();
+      animationGhosts.forEach((ghost) => ghost.remove());
+      animationGhosts.clear();
+      moveAnimating = false;
+      renderBoard({ mergedIndices: result.mergedIndices, spawnedIndex: result.spawnedIndex });
+      finishTurnOutcome(result);
+    });
   }
 
   function hideResult(): void {
@@ -187,6 +269,7 @@ export function mount({ container, exit }: GameContext): GameInstance {
 
   function newGame(): void {
     clearPendingOutcome();
+    clearBoardMotion();
     state = createInitialState();
     winCelebrated = false;
     gameOver = false;
@@ -231,8 +314,9 @@ export function mount({ container, exit }: GameContext): GameInstance {
     resultElement!.querySelector<HTMLButtonElement>('[data-2048-result-action="new"]')?.focus();
   }
 
-  function move(direction: Direction): void {
-    if (gameOver || outcomePending || !resultElement!.hidden) return;
+  function move(direction: Direction, capturedSources?: Array<TileVisual | undefined>): void {
+    if (gameOver || moveAnimating || outcomePending || !resultElement!.hidden) return;
+    const sources = capturedSources ?? captureTileVisuals();
     const result = takeTurn(state, direction);
 
     if (!result.moved) {
@@ -245,18 +329,12 @@ export function mount({ container, exit }: GameContext): GameInstance {
     messageElement!.textContent = result.scoreGained > 0
       ? `Nice match! +${result.scoreGained} points.`
       : "Smooth slide! Look for a matching pair.";
-    renderBoard({
-      direction,
-      mergedIndices: result.mergedIndices,
-      spawnedIndex: result.spawnedIndex,
-    });
-
-    if (result.created2048 && !winCelebrated) afterMoveAnimation(showWin);
-    else if (!canMove(state.board)) afterMoveAnimation(showGameOver);
+    animateTurn(result, sources);
   }
 
   function undo(): void {
-    if (!state.undo || gameOver || outcomePending || !resultElement!.hidden) return;
+    if (!state.undo || gameOver || moveAnimating || outcomePending || !resultElement!.hidden) return;
+    clearBoardMotion();
     state = undoTurn(state);
     messageElement!.textContent = "Last move undone. Choose your next slide!";
     renderBoard();
@@ -306,7 +384,7 @@ export function mount({ container, exit }: GameContext): GameInstance {
 
   function onPointerDown(event: PointerEvent): void {
     if (event.pointerType === "mouse" && event.button !== 0) return;
-    if (gameOver || outcomePending || !resultElement!.hidden) return;
+    if (gameOver || moveAnimating || outcomePending || !resultElement!.hidden) return;
     clearBoardMotion();
     pointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
     boardElement!.setPointerCapture(event.pointerId);
@@ -350,13 +428,14 @@ export function mount({ container, exit }: GameContext): GameInstance {
   }
 
   function onPointerUp(event: PointerEvent): void {
+    const sources = captureTileVisuals();
     const drag = endPointerDrag(event);
     if (!drag || !drag.endedInside) return;
     const { deltaX, deltaY } = drag;
     if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 24) return;
     move(Math.abs(deltaX) > Math.abs(deltaY)
       ? deltaX > 0 ? "right" : "left"
-      : deltaY > 0 ? "down" : "up");
+      : deltaY > 0 ? "down" : "up", sources);
   }
 
   function onPointerCancel(): void {
