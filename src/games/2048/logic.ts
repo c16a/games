@@ -103,6 +103,28 @@ export function moveBoard(board: Board, direction: Direction): BoardMove {
   };
 }
 
+/**
+ * Returns each source tile's visual offset in cell units for a drag preview.
+ * Tiles that cannot move in the requested direction remain at zero.
+ */
+export function previewTileOffsets(board: Board, direction: Direction, distance: number): number[] {
+  const requestedDistance = Math.max(0, distance);
+  const offsets = Array<number>(BOARD_SIZE * BOARD_SIZE).fill(0);
+
+  for (const motion of moveBoard(board, direction).motions) {
+    const fromColumn = motion.from % BOARD_SIZE;
+    const toColumn = motion.to % BOARD_SIZE;
+    const fromRow = Math.floor(motion.from / BOARD_SIZE);
+    const toRow = Math.floor(motion.to / BOARD_SIZE);
+    const travel = direction === "left" || direction === "right"
+      ? toColumn - fromColumn
+      : toRow - fromRow;
+    offsets[motion.from] = Math.sign(travel) * Math.min(requestedDistance, Math.abs(travel));
+  }
+
+  return offsets;
+}
+
 export function spawnTile(board: Board, random: () => number = Math.random): Board {
   const emptyCells = board
     .map((value, index) => value === 0 ? index : -1)

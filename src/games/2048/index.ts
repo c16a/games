@@ -7,7 +7,7 @@ import {
   type TurnResult,
   canMove,
   createInitialState,
-  moveBoard,
+  previewTileOffsets,
   takeTurn,
   undoTurn,
 } from "./logic";
@@ -38,8 +38,13 @@ interface Point {
   y: number;
 }
 
+interface DragPreview {
+  direction: Direction;
+  distance: number;
+}
+
 type BoardAnimation =
-  | { phase: "slide"; result: TurnResult; elapsed: number; duration: number; startOffset: Point }
+  | { phase: "slide"; result: TurnResult; elapsed: number; duration: number; direction: Direction; startOffsets: number[] }
   | { phase: "pop"; result: TurnResult; elapsed: number; duration: number };
 
 function loadBestScore(): number {
@@ -95,7 +100,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   let destroyed = false;
   let animation: BoardAnimation | undefined;
   let pointerStart: { id: number; x: number; y: number } | undefined;
-  let dragOffset: Point = { x: 0, y: 0 };
+  let dragPreview: DragPreview | undefined;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   container.innerHTML = `
@@ -239,11 +244,29 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       for (const motion of animation.result.motions) {
         const from = cellPosition(motion.from);
         const to = cellPosition(motion.to);
+        const startOffset = (animation.startOffsets[motion.from] ?? 0) * (CELL_SIZE + CELL_GAP);
+        const startX = animation.direction === "left" || animation.direction === "right" ? startOffset : 0;
+        const startY = animation.direction === "up" || animation.direction === "down" ? startOffset : 0;
         drawTile(motion.value, {
-          x: from.x + animation.startOffset.x * (1 - progress) + (to.x - from.x) * progress,
-          y: from.y + animation.startOffset.y * (1 - progress) + (to.y - from.y) * progress,
+          x: from.x + startX * (1 - progress) + (to.x - from.x) * progress,
+          y: from.y + startY * (1 - progress) + (to.y - from.y) * progress,
         }, motion.merged ? 1 - progress * 0.08 : 1);
       }
+      return;
+    }
+
+    if (dragPreview) {
+      const offsets = previewTileOffsets(state.board, dragPreview.direction, dragPreview.distance);
+      const horizontal = dragPreview.direction === "left" || dragPreview.direction === "right";
+      state.board.forEach((value, index) => {
+        if (value === 0) return;
+        const position = cellPosition(index);
+        const offset = (offsets[index] ?? 0) * (CELL_SIZE + CELL_GAP);
+        drawTile(value, {
+          x: position.x + (horizontal ? offset : 0),
+          y: position.y + (horizontal ? 0 : offset),
+        });
+      });
       return;
     }
 
@@ -263,11 +286,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
           ? 1 + (popProgress / 0.55) * 0.22
           : 1.22 - ((popProgress - 0.55) / 0.45) * 0.22;
       }
-      const position = cellPosition(index);
-      drawTile(value, {
-        x: position.x + (animation ? 0 : dragOffset.x),
-        y: position.y + (animation ? 0 : dragOffset.y),
-      }, scale, opacity);
+      drawTile(value, cellPosition(index), scale, opacity);
     });
   }
 
@@ -328,7 +347,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     else if (!canMove(state.board)) showGameOver();
   }
 
-  function beginAnimation(result: TurnResult, startOffset: Point): void {
+  function beginAnimation(result: TurnResult, direction: Direction, startOffsets: number[]): void {
     if (reducedMotion) {
       animation = undefined;
       finishTurn(result);
@@ -339,11 +358,11 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       const rows = Math.abs(Math.floor(motion.from / BOARD_SIZE) - Math.floor(motion.to / BOARD_SIZE));
       return Math.max(columns, rows);
     }));
-    animation = { phase: "slide", result, elapsed: 0, duration: 0.13 + distance * 0.055, startOffset };
+    animation = { phase: "slide", result, elapsed: 0, duration: 0.13 + distance * 0.055, direction, startOffsets };
     updateInterface();
   }
 
-  function move(direction: Direction, startOffset: Point = { x: 0, y: 0 }): void {
+  function move(direction: Direction, startOffsets = Array<number>(BOARD_SIZE * BOARD_SIZE).fill(0)): void {
     if (gameOver || animation || !resultElement!.hidden) return;
     const result = takeTurn(state, direction);
     if (!result.moved) {
@@ -355,7 +374,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     messageElement!.textContent = result.scoreGained > 0
       ? `Nice match! +${result.scoreGained} points.`
       : "Smooth slide! Look for a matching pair.";
-    beginAnimation(result, startOffset);
+    beginAnimation(result, direction, startOffsets);
   }
 
   function newGame(): void {
@@ -364,7 +383,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     gameOver = false;
     animation = undefined;
     pointerStart = undefined;
-    dragOffset = { x: 0, y: 0 };
+    dragPreview = undefined;
     hideResult();
     messageElement!.textContent = "Join matching tiles and build the biggest number you can!";
     updateInterface();
@@ -374,7 +393,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   function undo(): void {
     if (!state.undo || gameOver || animation || !resultElement!.hidden) return;
     state = undoTurn(state);
-    dragOffset = { x: 0, y: 0 };
+    dragPreview = undefined;
     messageElement!.textContent = "Last move undone. Choose your next slide!";
     updateInterface();
     canvas!.focus();
@@ -435,29 +454,34 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     const direction: Direction = horizontal
       ? deltaX > 0 ? "right" : "left"
       : deltaY > 0 ? "down" : "up";
-    const resistance = moveBoard(state.board, direction).moved ? 1 : 0.18;
     const scaleToCanvas = CANVAS_SIZE / canvas!.getBoundingClientRect().width;
     const raw = (horizontal ? deltaX : deltaY) * scaleToCanvas;
-    const offset = Math.sign(raw) * Math.min(Math.abs(raw), 58) * resistance;
-    dragOffset = { x: horizontal ? offset : 0, y: horizontal ? 0 : offset };
+    dragPreview = {
+      direction,
+      distance: Math.min(Math.abs(raw), 58) / (CELL_SIZE + CELL_GAP),
+    };
   }
 
-  function finishPointer(event?: PointerEvent): { deltaX: number; deltaY: number; startOffset: Point } | undefined {
+  function finishPointer(event?: PointerEvent): { deltaX: number; deltaY: number; preview?: DragPreview } | undefined {
     if (!pointerStart || (event && pointerStart.id !== event.pointerId)) return undefined;
     const start = pointerStart;
-    const startOffset = dragOffset;
+    const preview = dragPreview;
     pointerStart = undefined;
-    dragOffset = { x: 0, y: 0 };
+    dragPreview = undefined;
     if (event && canvas!.hasPointerCapture(event.pointerId)) canvas!.releasePointerCapture(event.pointerId);
-    return { deltaX: event ? event.clientX - start.x : 0, deltaY: event ? event.clientY - start.y : 0, startOffset };
+    return { deltaX: event ? event.clientX - start.x : 0, deltaY: event ? event.clientY - start.y : 0, preview };
   }
 
   function onPointerUp(event: PointerEvent): void {
     const drag = finishPointer(event);
     if (!drag || Math.max(Math.abs(drag.deltaX), Math.abs(drag.deltaY)) < 24) return;
-    move(Math.abs(drag.deltaX) > Math.abs(drag.deltaY)
+    const direction: Direction = Math.abs(drag.deltaX) > Math.abs(drag.deltaY)
       ? drag.deltaX > 0 ? "right" : "left"
-      : drag.deltaY > 0 ? "down" : "up", drag.startOffset);
+      : drag.deltaY > 0 ? "down" : "up";
+    const startOffsets = drag.preview?.direction === direction
+      ? previewTileOffsets(state.board, direction, drag.preview.distance)
+      : undefined;
+    move(direction, startOffsets);
   }
 
   function onPointerCancel(event: PointerEvent): void {
@@ -492,6 +516,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       destroyed = true;
       animation = undefined;
       pointerStart = undefined;
+      dragPreview = undefined;
       container.removeEventListener("click", onClick);
       window.removeEventListener("keydown", onKeyDown);
       canvas.removeEventListener("pointerdown", onPointerDown);

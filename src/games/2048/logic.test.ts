@@ -6,6 +6,7 @@ import {
   createInitialState,
   hasWinningTile,
   moveBoard,
+  previewTileOffsets,
   spawnTile,
   takeTurn,
   undoTurn,
@@ -59,6 +60,19 @@ describe("2048 movement", () => {
       { from: 2, to: 3, value: 4, merged: false },
       { from: 0, to: 2, value: 2, merged: false },
     ]);
+  });
+
+  test("keeps edge-blocked and packed tiles still during drag previews", () => {
+    const packed = board([2, 4, 8, 16], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]);
+    expect(previewTileOffsets(packed, "right", 0.4).slice(0, 4)).toEqual([0, 0, 0, 0]);
+
+    const withGap = board([2, 4, 0, 8], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]);
+    expect(previewTileOffsets(withGap, "right", 0.4).slice(0, 4)).toEqual([0.4, 0.4, 0, 0]);
+  });
+
+  test("moves only the joining tile when previewing a merge at an edge", () => {
+    const start = board([0, 0, 2, 2], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]);
+    expect(previewTileOffsets(start, "right", 0.5).slice(0, 4)).toEqual([0, 0, 0.5, 0]);
   });
 
   test("does not merge a newly-created tile twice", () => {
