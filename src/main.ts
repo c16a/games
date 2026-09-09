@@ -77,12 +77,20 @@ const games: GameCard[] = [
     icon: "🚀",
     accent: "#845ef7",
   },
+  {
+    id: "space-shooter",
+    name: "Star Squadron",
+    description: "Dodge, blast, and upgrade through endless space!",
+    badge: "Arcade",
+    icon: "🛸",
+    accent: "#22b8cf",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 let kaplayPreloadScheduled = false;
 
-type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris" | "lunar-lander";
+type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris" | "lunar-lander" | "space-shooter";
 type Route = "home" | GameId;
 
 const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
@@ -95,6 +103,7 @@ const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
   breakout: () => import("./games/breakout"),
   tetris: () => import("./games/tetris"),
   "lunar-lander": () => import("./games/lunar-lander"),
+  "space-shooter": () => import("./games/space-shooter"),
 };
 
 function isGameId(value: string): value is GameId {

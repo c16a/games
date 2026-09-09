@@ -793,6 +793,62 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .lander-result-card { background: #f3f0ff; }
 .lander-result-icon { font-size: 3.5rem; }
 
+.shooter-page {
+  background:
+    radial-gradient(circle at 90% 14%, rgba(34, 184, 207, .2) 0 120px, transparent 121px),
+    radial-gradient(circle at 6% 76%, rgba(116, 143, 252, .17) 0 135px, transparent 136px),
+    linear-gradient(rgba(34, 184, 207, .045) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(34, 184, 207, .045) 2px, transparent 2px),
+    #f1fbff;
+  background-size: auto, auto, 34px 34px, 34px 34px, auto;
+}
+.shooter-eyebrow { color: #087f8c; }
+.shooter-game { width: min(940px, 100%); margin: 0 auto; }
+.shooter-mission {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 20px;
+  color: #172554;
+  background: linear-gradient(110deg, #99e9f2, #d0ebff);
+  border: 4px solid var(--ink);
+  border-radius: 26px;
+  box-shadow: 7px 8px 0 var(--ink);
+}
+.shooter-mission .mission-copy { color: #36536f; }
+.shooter-mission-icon { display: grid; place-items: center; width: 64px; height: 64px; background: #fff9db; border: 3px solid var(--ink); border-radius: 20px; box-shadow: 3px 4px 0 var(--ink); font-size: 2.15rem; transform: rotate(-5deg); }
+.shooter-scores { display: grid; grid-template-columns: repeat(3, minmax(62px, auto)); gap: 7px; }
+.shooter-scores div { padding: 7px 9px; text-align: center; background: white; border: 3px solid var(--ink); border-radius: 15px; }
+.shooter-scores strong, .shooter-scores span { display: block; }
+.shooter-scores strong { font-size: 1.2rem; line-height: 1.1; }
+.shooter-scores span { margin-bottom: 3px; color: #35606b; font-size: .66rem; font-weight: 900; text-transform: uppercase; }
+.shooter-workspace { margin-top: 24px; padding: clamp(14px, 3vw, 26px); background: white; border: 3px solid var(--ink); border-radius: 30px; box-shadow: 8px 9px 0 var(--ink); }
+.shooter-play-layout { display: grid; grid-template-columns: minmax(250px, 400px) minmax(155px, 210px); justify-content: center; align-items: start; gap: clamp(13px, 3vw, 25px); }
+.shooter-board-shell { width: min(400px, 100%); padding: 9px; background: linear-gradient(145deg, #22b8cf, #748ffc); border: 4px solid var(--ink); border-radius: 27px; box-shadow: 5px 6px 0 rgba(36,31,69,.18); }
+.shooter-canvas { display: block; width: 100% !important; max-width: 100%; height: auto !important; aspect-ratio: 2 / 3; border: 3px solid var(--ink); border-radius: 17px; outline-offset: 5px; touch-action: none; user-select: none; cursor: crosshair; }
+.shooter-hud { display: grid; gap: 10px; }
+.shooter-health-card, .shooter-progress-card, .shooter-stat { padding: 11px 12px; color: #172554; background: #edfaff; border: 2px solid #a5d8ff; border-radius: 15px; }
+.shooter-health-card > span, .shooter-progress-card > span, .shooter-stat span { color: #446477; font-size: .68rem; font-weight: 900; text-transform: uppercase; }
+.shooter-health-card strong, .shooter-progress-card strong { display: block; margin: 3px 0 7px; font-size: 1.05rem; }
+.shooter-stat { display: grid; grid-template-columns: 1fr auto; align-items: center; }
+.shooter-stat strong { color: #087f8c; font-size: 1.25rem; }
+.shooter-meter { height: 10px; overflow: hidden; background: #cfe7ee; border-radius: 999px; }
+.shooter-meter i { display: block; width: 100%; height: 100%; background: #51cf66; border-radius: inherit; transition: width .16s ease; }
+.shooter-meter i.shooter-health-bar--low { background: #ff6b6b; }
+.shooter-meter--xp i { width: 0; background: #ffd43b; }
+.shooter-hud p { margin: 0; padding: 10px; color: #536378; background: #fff9db; border-radius: 13px; font-size: .77rem; line-height: 1.45; }
+.shooter-message { min-height: 25px; margin: 14px 0 10px; color: #4d6373; text-align: center; font-size: .9rem; font-weight: 800; }
+.shooter-pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 520px; margin: 0 auto 12px; }
+.shooter-pad button { min-height: 55px; padding: 5px; color: #164e63; background: #cff4fc; border: 3px solid var(--ink); border-radius: 15px; box-shadow: 3px 4px 0 var(--ink); cursor: pointer; font-size: 1.45rem; font-weight: 950; touch-action: none; user-select: none; }
+.shooter-pad button:active { translate: 2px 2px; background: #99e9f2; box-shadow: 1px 2px 0 var(--ink); }
+.shooter-actions { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 9px; max-width: 570px; margin: 0 auto; }
+.shooter-actions .soft-button, .shooter-actions .check-button { width: auto; margin: 0; }
+.shooter-start, .shooter-result-button { background: #22b8cf; }
+.shooter-start:hover:not(:disabled), .shooter-result-button:hover:not(:disabled) { background: #0c8599; }
+.shooter-result-card { background: #e3fafc; }
+.shooter-result-icon { display: block; font-size: 3.5rem; }
+
 .tower-page {
   background:
     radial-gradient(circle at 88% 14%, rgba(255, 146, 43, .2) 0 110px, transparent 111px),
@@ -1264,6 +1320,8 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .tetris-mission { grid-template-columns: auto 1fr auto; }
   .lander-mission { grid-template-columns: auto 1fr; }
   .lander-scores { grid-column: 1 / -1; grid-template-columns: repeat(3, 1fr); }
+  .shooter-mission { grid-template-columns: auto 1fr; }
+  .shooter-scores { grid-column: 1 / -1; grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 460px) {
@@ -1382,6 +1440,24 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .lander-flight-controls button { min-height: 56px; }
   .lander-actions { grid-template-columns: 1fr 1fr; }
   .lander-actions [data-lander-action="new"] { grid-column: 1 / -1; }
+  .shooter-mission { padding: 12px; gap: 10px; }
+  .shooter-mission-icon { width: 48px; height: 48px; border-radius: 15px; font-size: 1.6rem; }
+  .shooter-mission .mission-title { font-size: 1rem; }
+  .shooter-mission .mission-copy { display: none; }
+  .shooter-workspace { padding: 10px; border-radius: 23px; }
+  .shooter-play-layout { grid-template-columns: minmax(0, 1fr) 96px; gap: 7px; }
+  .shooter-board-shell { padding: 6px; border-radius: 20px; }
+  .shooter-canvas { border-radius: 13px; }
+  .shooter-hud { gap: 6px; }
+  .shooter-health-card, .shooter-progress-card, .shooter-stat { padding: 6px; border-radius: 11px; }
+  .shooter-health-card strong, .shooter-progress-card strong { font-size: .84rem; }
+  .shooter-stat { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .shooter-stat strong { font-size: 1rem; }
+  .shooter-hud p { display: none; }
+  .shooter-pad { gap: 5px; }
+  .shooter-pad button { min-height: 50px; }
+  .shooter-actions { grid-template-columns: 1fr 1fr; }
+  .shooter-actions [data-shooter-action="new"] { grid-column: 1 / -1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
