@@ -72,6 +72,7 @@ const games: GameCard[] = [
 ];
 
 let activeGame: GameInstance | undefined;
+let kaplayPreloadScheduled = false;
 
 type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris";
 type Route = "home" | GameId;
@@ -89,6 +90,28 @@ const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
 
 function isGameId(value: string): value is GameId {
   return value in gameLoaders;
+}
+
+function preloadKaplayInBackground(): void {
+  if (kaplayPreloadScheduled) return;
+  kaplayPreloadScheduled = true;
+
+  const preload = (): void => {
+    void import("kaplay").catch(() => {
+      // Allow another homepage visit to retry after a transient load failure.
+      kaplayPreloadScheduled = false;
+    });
+  };
+
+  const requestIdle = (window as unknown as {
+    requestIdleCallback?: Window["requestIdleCallback"];
+  }).requestIdleCallback;
+
+  if (requestIdle) {
+    requestIdle.call(window, preload, { timeout: 2_000 });
+  } else {
+    globalThis.setTimeout(preload, 0);
+  }
 }
 
 function navigate(route: Route): void {
@@ -153,6 +176,8 @@ function renderPicker(): void {
       if (gameId && isGameId(gameId)) navigate(gameId);
     });
   });
+
+  preloadKaplayInBackground();
 }
 
 async function renderGame(gameId: GameId): Promise<void> {
