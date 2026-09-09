@@ -738,6 +738,61 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .tetris-result-card { background: #f3f5ff; }
 .tetris-result-icon { font-size: 3.25rem; }
 
+.lander-page {
+  background:
+    radial-gradient(circle at 91% 15%, rgba(132, 94, 247, .2) 0 115px, transparent 116px),
+    radial-gradient(circle at 7% 78%, rgba(77, 171, 247, .14) 0 130px, transparent 131px),
+    linear-gradient(rgba(132, 94, 247, .04) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(132, 94, 247, .04) 2px, transparent 2px),
+    #f7f5ff;
+  background-size: auto, auto, 34px 34px, 34px 34px, auto;
+}
+.lander-eyebrow { color: #6741d9; }
+.lander-game { width: min(930px, 100%); margin: 0 auto; }
+.lander-mission {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 20px;
+  color: #25234d;
+  background: linear-gradient(110deg, #d0bfff, #e5dbff);
+  border: 4px solid var(--ink);
+  border-radius: 26px;
+  box-shadow: 7px 8px 0 var(--ink);
+}
+.lander-mission .mission-copy { color: #554b87; }
+.lander-mission-icon { display: grid; place-items: center; width: 64px; height: 64px; background: #fff; border: 3px solid var(--ink); border-radius: 20px; box-shadow: 3px 4px 0 var(--ink); font-size: 2.15rem; transform: rotate(5deg); }
+.lander-scores { display: grid; grid-template-columns: repeat(3, minmax(66px, auto)); gap: 7px; }
+.lander-scores div { padding: 7px 9px; text-align: center; background: white; border: 3px solid var(--ink); border-radius: 15px; }
+.lander-scores strong, .lander-scores span { display: block; }
+.lander-scores strong { max-width: 88px; overflow: hidden; font-size: 1.2rem; line-height: 1.1; text-overflow: ellipsis; }
+.lander-scores span { margin-bottom: 3px; color: #5f4b9a; font-size: .66rem; font-weight: 900; text-transform: uppercase; }
+.lander-workspace { margin-top: 24px; padding: clamp(15px, 3vw, 28px); background: #fff; border: 3px solid var(--ink); border-radius: 30px; box-shadow: 8px 9px 0 var(--ink); }
+.lander-board-shell { width: min(690px, 100%); margin: 0 auto; padding: clamp(7px, 1.7vw, 11px); background: linear-gradient(135deg, #845ef7, #4dabf7); border: 4px solid var(--ink); border-radius: 28px; box-shadow: 5px 6px 0 rgba(36,31,69,.18); }
+.lander-canvas { display: block; width: 100% !important; max-width: 100%; height: auto !important; aspect-ratio: 8 / 7; border: 3px solid var(--ink); border-radius: 18px; outline-offset: 5px; touch-action: none; }
+.lander-instruments { display: grid; grid-template-columns: 1.7fr repeat(4, 1fr); gap: 7px; max-width: 690px; margin: 13px auto 0; }
+.lander-instruments > div { display: grid; justify-items: center; align-content: center; min-height: 55px; padding: 6px; color: #e8e5ff; background: #17152e; border: 2px solid #4c4773; border-radius: 12px; }
+.lander-instruments span { color: #aaa5d4; font-size: .62rem; font-weight: 900; text-transform: uppercase; }
+.lander-instruments strong { font-size: 1.02rem; }
+.lander-fuel { grid-template-columns: auto 1fr auto; gap: 7px; }
+.lander-fuel-track { width: 100%; height: 10px; overflow: hidden; background: #3f3a61; border-radius: 999px; }
+.lander-fuel-track i { display: block; width: 100%; height: 100%; background: #51cf66; border-radius: inherit; transition: width .08s linear; }
+.lander-fuel-track i.lander-fuel-bar--low { background: #ff6b6b; }
+.lander-message { min-height: 24px; margin: 13px 0 10px; color: #57527b; text-align: center; font-size: .9rem; font-weight: 800; }
+.lander-flight-controls { display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 9px; max-width: 610px; margin: 0 auto 12px; }
+.lander-flight-controls button { display: grid; place-items: center; min-height: 62px; padding: 5px; color: #302b5d; background: #e5dbff; border: 3px solid var(--ink); border-radius: 16px; box-shadow: 3px 4px 0 var(--ink); cursor: pointer; font-size: .75rem; font-weight: 950; text-transform: uppercase; touch-action: none; user-select: none; }
+.lander-flight-controls button span { font-size: 1.55rem; line-height: 1; }
+.lander-flight-controls button:active { translate: 2px 2px; background: #d0bfff; box-shadow: 1px 2px 0 var(--ink); }
+.lander-flight-controls .lander-thrust { color: #5f2600; background: #ffd8a8; }
+.lander-flight-controls .lander-thrust:active { background: #ffc078; }
+.lander-actions { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 9px; max-width: 570px; margin: 0 auto; }
+.lander-actions .soft-button, .lander-actions .check-button { width: auto; margin: 0; }
+.lander-start, .lander-result-button { background: #7950f2; }
+.lander-start:hover:not(:disabled), .lander-result-button:hover:not(:disabled) { background: #6741d9; }
+.lander-result-card { background: #f3f0ff; }
+.lander-result-icon { font-size: 3.5rem; }
+
 .tower-page {
   background:
     radial-gradient(circle at 88% 14%, rgba(255, 146, 43, .2) 0 110px, transparent 111px),
@@ -1207,6 +1262,8 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .breakout-mission { grid-template-columns: auto 1fr; }
   .breakout-stats { grid-column: 1 / -1; grid-template-columns: repeat(3, 1fr); }
   .tetris-mission { grid-template-columns: auto 1fr auto; }
+  .lander-mission { grid-template-columns: auto 1fr; }
+  .lander-scores { grid-column: 1 / -1; grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 460px) {
@@ -1311,6 +1368,20 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .tetris-pad button { min-height: 52px; font-size: 1.25rem; }
   .tetris-controls { grid-template-columns: 1fr 1fr; }
   .tetris-controls [data-tetris-action="new"] { grid-column: 1 / -1; }
+  .lander-mission { padding: 12px; gap: 10px; }
+  .lander-mission-icon { width: 48px; height: 48px; border-radius: 15px; font-size: 1.6rem; }
+  .lander-mission .mission-title { font-size: 1rem; }
+  .lander-mission .mission-copy { display: none; }
+  .lander-workspace { padding: 10px; border-radius: 23px; }
+  .lander-board-shell { padding: 6px; border-radius: 20px; }
+  .lander-canvas { border-radius: 13px; }
+  .lander-instruments { grid-template-columns: 1.5fr repeat(2, 1fr); gap: 5px; }
+  .lander-instruments > div { min-height: 48px; }
+  .lander-instruments > div:nth-child(4), .lander-instruments > div:nth-child(5) { display: none; }
+  .lander-flight-controls { gap: 6px; }
+  .lander-flight-controls button { min-height: 56px; }
+  .lander-actions { grid-template-columns: 1fr 1fr; }
+  .lander-actions [data-lander-action="new"] { grid-column: 1 / -1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

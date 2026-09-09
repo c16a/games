@@ -69,12 +69,20 @@ const games: GameCard[] = [
     icon: "🧩",
     accent: "#748ffc",
   },
+  {
+    id: "lunar-lander",
+    name: "Lunar Lander",
+    description: "Balance thrust and gravity for a perfect touchdown!",
+    badge: "Physics",
+    icon: "🚀",
+    accent: "#845ef7",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 let kaplayPreloadScheduled = false;
 
-type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris";
+type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris" | "lunar-lander";
 type Route = "home" | GameId;
 
 const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
@@ -86,6 +94,7 @@ const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
   snake: () => import("./games/snake"),
   breakout: () => import("./games/breakout"),
   tetris: () => import("./games/tetris"),
+  "lunar-lander": () => import("./games/lunar-lander"),
 };
 
 function isGameId(value: string): value is GameId {
