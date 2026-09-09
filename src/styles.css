@@ -15,10 +15,12 @@
 html {
   min-width: 320px;
   background: var(--cream);
+  overflow-x: hidden;
   /* Keep panning and pinch zoom, but prevent accidental double-tap zoom. */
   touch-action: manipulation;
 }
-body { margin: 0; min-width: 320px; min-height: 100vh; }
+body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; }
+#app { min-height: 100vh; overflow-x: hidden; }
 button, a { font: inherit; }
 button { color: inherit; }
 button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offset: 4px; }
