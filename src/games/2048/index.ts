@@ -6,6 +6,7 @@ import {
   type GameState,
   canMove,
   createInitialState,
+  moveBoard,
   takeTurn,
   undoTurn,
 } from "./logic";
@@ -45,7 +46,10 @@ export function mount({ container, exit }: GameContext): GameInstance {
   let bestScore = loadBestScore();
   let winCelebrated = false;
   let gameOver = false;
+  let outcomePending = false;
   let pointerStart: { id: number; x: number; y: number } | undefined;
+  let animationTimer: number | undefined;
+  let outcomeTimer: number | undefined;
 
   container.innerHTML = `
     <main class="game-page twenty-page">
@@ -117,13 +121,50 @@ export function mount({ container, exit }: GameContext): GameInstance {
     saveBestScore(bestScore);
   }
 
-  function renderBoard(): void {
+  function clearBoardMotion(): void {
+    if (animationTimer !== undefined) window.clearTimeout(animationTimer);
+    animationTimer = undefined;
+    boardElement!.classList.remove(
+      "twenty-board--dragging",
+      "twenty-board--move-up",
+      "twenty-board--move-down",
+      "twenty-board--move-left",
+      "twenty-board--move-right",
+    );
+    boardElement!.style.removeProperty("--drag-x");
+    boardElement!.style.removeProperty("--drag-y");
+  }
+
+  function clearPendingOutcome(): void {
+    if (outcomeTimer !== undefined) window.clearTimeout(outcomeTimer);
+    outcomeTimer = undefined;
+    outcomePending = false;
+  }
+
+  function afterMoveAnimation(action: () => void): void {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      action();
+      return;
+    }
+    outcomePending = true;
+    outcomeTimer = window.setTimeout(() => {
+      outcomeTimer = undefined;
+      outcomePending = false;
+      action();
+    }, 330);
+  }
+
+  function renderBoard(animation?: { direction: Direction; mergedIndices: number[]; spawnedIndex?: number }): void {
+    clearBoardMotion();
+    const mergedIndices = new Set(animation?.mergedIndices ?? []);
     boardElement!.innerHTML = state.board.map((value, index) => {
       const row = Math.floor(index / BOARD_SIZE) + 1;
       const column = index % BOARD_SIZE + 1;
+      const mergedClass = mergedIndices.has(index) ? " twenty-cell--merged" : "";
+      const spawnedClass = animation?.spawnedIndex === index ? " twenty-cell--spawned" : "";
       return `
         <div
-          class="twenty-cell ${tileClass(value)}"
+          class="twenty-cell ${tileClass(value)}${mergedClass}${spawnedClass}"
           role="gridcell"
           aria-label="Row ${row}, column ${column}: ${value === 0 ? "empty" : value}"
         >${value === 0 ? "" : `<span>${value}</span>`}</div>`;
@@ -132,6 +173,11 @@ export function mount({ container, exit }: GameContext): GameInstance {
     scoreElement!.textContent = String(state.score);
     bestElement!.textContent = String(bestScore);
     undoButton!.disabled = !state.undo || gameOver;
+
+    if (animation) {
+      boardElement!.classList.add(`twenty-board--move-${animation.direction}`);
+      animationTimer = window.setTimeout(() => clearBoardMotion(), 360);
+    }
   }
 
   function hideResult(): void {
@@ -140,6 +186,7 @@ export function mount({ container, exit }: GameContext): GameInstance {
   }
 
   function newGame(): void {
+    clearPendingOutcome();
     state = createInitialState();
     winCelebrated = false;
     gameOver = false;
@@ -168,7 +215,7 @@ export function mount({ container, exit }: GameContext): GameInstance {
 
   function showGameOver(): void {
     gameOver = true;
-    renderBoard();
+    undoButton!.disabled = true;
     resultElement!.hidden = false;
     resultElement!.innerHTML = `
       <div class="result-card twenty-result-card" role="dialog" aria-modal="true" aria-labelledby="2048-over-title">
@@ -185,7 +232,7 @@ export function mount({ container, exit }: GameContext): GameInstance {
   }
 
   function move(direction: Direction): void {
-    if (gameOver || !resultElement!.hidden) return;
+    if (gameOver || outcomePending || !resultElement!.hidden) return;
     const result = takeTurn(state, direction);
 
     if (!result.moved) {
@@ -198,14 +245,18 @@ export function mount({ container, exit }: GameContext): GameInstance {
     messageElement!.textContent = result.scoreGained > 0
       ? `Nice match! +${result.scoreGained} points.`
       : "Smooth slide! Look for a matching pair.";
-    renderBoard();
+    renderBoard({
+      direction,
+      mergedIndices: result.mergedIndices,
+      spawnedIndex: result.spawnedIndex,
+    });
 
-    if (result.created2048 && !winCelebrated) showWin();
-    else if (!canMove(state.board)) showGameOver();
+    if (result.created2048 && !winCelebrated) afterMoveAnimation(showWin);
+    else if (!canMove(state.board)) afterMoveAnimation(showGameOver);
   }
 
   function undo(): void {
-    if (!state.undo || gameOver || !resultElement!.hidden) return;
+    if (!state.undo || gameOver || outcomePending || !resultElement!.hidden) return;
     state = undoTurn(state);
     messageElement!.textContent = "Last move undone. Choose your next slide!";
     renderBoard();
@@ -255,15 +306,53 @@ export function mount({ container, exit }: GameContext): GameInstance {
 
   function onPointerDown(event: PointerEvent): void {
     if (event.pointerType === "mouse" && event.button !== 0) return;
+    if (gameOver || outcomePending || !resultElement!.hidden) return;
+    clearBoardMotion();
     pointerStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
     boardElement!.setPointerCapture(event.pointerId);
   }
 
-  function onPointerUp(event: PointerEvent): void {
+  function onPointerMove(event: PointerEvent): void {
     if (!pointerStart || pointerStart.id !== event.pointerId) return;
     const deltaX = event.clientX - pointerStart.x;
     const deltaY = event.clientY - pointerStart.y;
+    if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 3) return;
+
+    const horizontal = Math.abs(deltaX) > Math.abs(deltaY);
+    const direction: Direction = horizontal
+      ? deltaX > 0 ? "right" : "left"
+      : deltaY > 0 ? "down" : "up";
+    const resistance = moveBoard(state.board, direction).moved ? 1 : 0.18;
+    const maxOffset = Math.min(44, boardElement!.clientWidth * 0.12);
+    const distance = Math.max(Math.abs(deltaX), Math.abs(deltaY));
+    const scale = (distance > maxOffset ? maxOffset / distance : 1) * resistance;
+    boardElement!.style.setProperty("--drag-x", `${horizontal ? deltaX * scale : 0}px`);
+    boardElement!.style.setProperty("--drag-y", `${horizontal ? 0 : deltaY * scale}px`);
+    boardElement!.classList.add("twenty-board--dragging");
+  }
+
+  function endPointerDrag(event?: PointerEvent): { deltaX: number; deltaY: number; endedInside: boolean } | undefined {
+    if (!pointerStart || (event && pointerStart.id !== event.pointerId)) return undefined;
+    const start = pointerStart;
     pointerStart = undefined;
+    const deltaX = event ? event.clientX - start.x : 0;
+    const deltaY = event ? event.clientY - start.y : 0;
+    const bounds = boardElement!.getBoundingClientRect();
+    const endedInside = Boolean(event)
+      && event!.clientX >= bounds.left
+      && event!.clientX <= bounds.right
+      && event!.clientY >= bounds.top
+      && event!.clientY <= bounds.bottom;
+    boardElement!.classList.remove("twenty-board--dragging");
+    boardElement!.style.removeProperty("--drag-x");
+    boardElement!.style.removeProperty("--drag-y");
+    return { deltaX, deltaY, endedInside };
+  }
+
+  function onPointerUp(event: PointerEvent): void {
+    const drag = endPointerDrag(event);
+    if (!drag || !drag.endedInside) return;
+    const { deltaX, deltaY } = drag;
     if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 24) return;
     move(Math.abs(deltaX) > Math.abs(deltaY)
       ? deltaX > 0 ? "right" : "left"
@@ -271,12 +360,13 @@ export function mount({ container, exit }: GameContext): GameInstance {
   }
 
   function onPointerCancel(): void {
-    pointerStart = undefined;
+    endPointerDrag();
   }
 
   container.addEventListener("click", onClick);
   window.addEventListener("keydown", onKeyDown);
   boardElement.addEventListener("pointerdown", onPointerDown);
+  boardElement.addEventListener("pointermove", onPointerMove);
   boardElement.addEventListener("pointerup", onPointerUp);
   boardElement.addEventListener("pointercancel", onPointerCancel);
   renderBoard();
@@ -284,9 +374,12 @@ export function mount({ container, exit }: GameContext): GameInstance {
   return {
     destroy() {
       pointerStart = undefined;
+      clearPendingOutcome();
+      clearBoardMotion();
       container.removeEventListener("click", onClick);
       window.removeEventListener("keydown", onKeyDown);
       boardElement.removeEventListener("pointerdown", onPointerDown);
+      boardElement.removeEventListener("pointermove", onPointerMove);
       boardElement.removeEventListener("pointerup", onPointerUp);
       boardElement.removeEventListener("pointercancel", onPointerCancel);
       container.innerHTML = "";

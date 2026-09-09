@@ -29,6 +29,7 @@ describe("2048 movement", () => {
     const result = moveBoard(start, "left");
     expect(result.board.slice(0, 4)).toEqual([4, 0, 0, 0]);
     expect(result.scoreGained).toBe(4);
+    expect(result.mergedIndices).toEqual([0]);
   });
 
   test("merges multiple independent pairs", () => {
@@ -36,6 +37,16 @@ describe("2048 movement", () => {
     const result = moveBoard(start, "left");
     expect(result.board.slice(0, 4)).toEqual([4, 4, 0, 0]);
     expect(result.scoreGained).toBe(8);
+    expect(result.mergedIndices).toEqual([0, 1]);
+  });
+
+  test("reports merge destinations in every direction", () => {
+    const horizontal = board([2, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]);
+    const vertical = board([2, 0, 0, 0], [2, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]);
+    expect(moveBoard(horizontal, "left").mergedIndices).toEqual([0]);
+    expect(moveBoard(horizontal, "right").mergedIndices).toEqual([3]);
+    expect(moveBoard(vertical, "up").mergedIndices).toEqual([0]);
+    expect(moveBoard(vertical, "down").mergedIndices).toEqual([12]);
   });
 
   test("does not merge a newly-created tile twice", () => {
@@ -77,6 +88,8 @@ describe("2048 turns", () => {
     expect(result.state).toBe(start);
     expect(result.state.undo).toEqual(start.undo);
     expect(randomCalls).toBe(0);
+    expect(result.mergedIndices).toEqual([]);
+    expect(result.spawnedIndex).toBeUndefined();
   });
 
   test("spawns deterministically into an empty cell", () => {
@@ -122,5 +135,16 @@ describe("2048 turns", () => {
     expect(restored.board).toEqual(start.board);
     expect(restored.score).toBe(start.score);
     expect(restored.undo).toBeUndefined();
+  });
+
+  test("reports the merged and spawned cells for animation", () => {
+    const start: GameState = {
+      board: board([2, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]),
+      score: 0,
+    };
+    const values = [0, 0.5];
+    const result = takeTurn(start, "left", () => values.shift() ?? 0.5);
+    expect(result.mergedIndices).toEqual([0]);
+    expect(result.spawnedIndex).toBe(1);
   });
 });

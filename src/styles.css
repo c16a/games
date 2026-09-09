@@ -840,7 +840,9 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   border: 4px solid var(--ink);
   border-radius: clamp(18px, 4vw, 28px);
   box-shadow: inset 0 5px 0 rgba(255,255,255,.14), 6px 7px 0 rgba(36,31,69,.18);
+  overflow: hidden;
   user-select: none;
+  cursor: grab;
 }
 .twenty-board:focus-visible { outline: 5px solid #38bdf8; outline-offset: 5px; }
 .twenty-cell {
@@ -854,13 +856,29 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   border-radius: clamp(9px, 2.5vw, 17px);
   box-shadow: inset 0 4px 0 rgba(255,255,255,.3);
   overflow: hidden;
+  transition: transform .14s ease-out;
+  will-change: transform;
 }
 .twenty-cell span {
-  animation: tilePop .16s ease-out;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
   font-size: clamp(1.1rem, 6vw, 2.5rem);
   font-weight: 950;
   letter-spacing: -.05em;
 }
+.twenty-board--dragging { cursor: grabbing; }
+.twenty-board--dragging .twenty-cell:not(.tile-empty) {
+  transform: translate3d(var(--drag-x, 0), var(--drag-y, 0), 0) scale(.98);
+  transition: none;
+}
+.twenty-board--move-left .twenty-cell:not(.tile-empty) { animation: tileSlideLeft .2s ease-out; }
+.twenty-board--move-right .twenty-cell:not(.tile-empty) { animation: tileSlideRight .2s ease-out; }
+.twenty-board--move-up .twenty-cell:not(.tile-empty) { animation: tileSlideUp .2s ease-out; }
+.twenty-board--move-down .twenty-cell:not(.tile-empty) { animation: tileSlideDown .2s ease-out; }
+.twenty-cell--merged span { animation: tileMerge .34s cubic-bezier(.2, .9, .3, 1.35); }
+.twenty-cell--spawned span { animation: tileAppear .25s ease-out; }
 .tile-empty { background: rgba(255,255,255,.18); border-color: rgba(36,31,69,.28); box-shadow: none; }
 .tile-2 { background: #fff3bf; }
 .tile-4 { background: #ffe066; }
@@ -921,7 +939,12 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 @keyframes hintWiggle { from { transform: rotate(-3deg) scale(1.02); } to { transform: rotate(3deg) scale(1.06); } }
 @keyframes towerPulse { to { background: rgba(255,255,255,.56); transform: scale(.98); } }
 @keyframes towerShake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-@keyframes tilePop { from { transform: scale(.72); opacity: .45; } }
+@keyframes tileSlideLeft { from { transform: translateX(28%); } }
+@keyframes tileSlideRight { from { transform: translateX(-28%); } }
+@keyframes tileSlideUp { from { transform: translateY(28%); } }
+@keyframes tileSlideDown { from { transform: translateY(-28%); } }
+@keyframes tileMerge { 0% { transform: scale(.78); } 58% { transform: scale(1.24); } 100% { transform: scale(1); } }
+@keyframes tileAppear { from { transform: scale(.35) rotate(-7deg); opacity: 0; } }
 
 @media (max-width: 760px) {
   .picker-page { padding: 18px 16px 40px; }

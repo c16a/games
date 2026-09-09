@@ -18,6 +18,7 @@ export interface BoardMove {
   moved: boolean;
   scoreGained: number;
   created2048: boolean;
+  mergedIndices: number[];
 }
 
 export interface TurnResult {
@@ -25,21 +26,25 @@ export interface TurnResult {
   moved: boolean;
   scoreGained: number;
   created2048: boolean;
+  mergedIndices: number[];
+  spawnedIndex?: number;
 }
 
 function normalizedRandom(random: () => number): number {
   return Math.min(0.999999999, Math.max(0, random()));
 }
 
-function collapseLine(line: number[]): { values: number[]; score: number } {
+function collapseLine(line: number[]): { values: number[]; score: number; mergedOffsets: number[] } {
   const tiles = line.filter((value) => value !== 0);
   const values: number[] = [];
+  const mergedOffsets: number[] = [];
   let score = 0;
 
   for (let index = 0; index < tiles.length; index += 1) {
     const value = tiles[index]!;
     if (value === tiles[index + 1]) {
       const merged = value * 2;
+      mergedOffsets.push(values.length);
       values.push(merged);
       score += merged;
       index += 1;
@@ -49,7 +54,7 @@ function collapseLine(line: number[]): { values: number[]; score: number } {
   }
 
   while (values.length < BOARD_SIZE) values.push(0);
-  return { values, score };
+  return { values, score, mergedOffsets };
 }
 
 function lineIndices(direction: Direction, line: number): number[] {
@@ -67,12 +72,14 @@ export function moveBoard(board: Board, direction: Direction): BoardMove {
   if (board.length !== BOARD_SIZE * BOARD_SIZE) throw new Error("A 2048 board must contain 16 cells");
 
   const next = [...board];
+  const mergedIndices: number[] = [];
   let scoreGained = 0;
 
   for (let line = 0; line < BOARD_SIZE; line += 1) {
     const indices = lineIndices(direction, line);
     const collapsed = collapseLine(indices.map((index) => board[index]!));
     scoreGained += collapsed.score;
+    collapsed.mergedOffsets.forEach((offset) => mergedIndices.push(indices[offset]!));
     indices.forEach((boardIndex, valueIndex) => {
       next[boardIndex] = collapsed.values[valueIndex]!;
     });
@@ -84,6 +91,7 @@ export function moveBoard(board: Board, direction: Direction): BoardMove {
     moved,
     scoreGained,
     created2048: !hasWinningTile(board) && hasWinningTile(next),
+    mergedIndices,
   };
 }
 
@@ -117,18 +125,24 @@ export function takeTurn(
       moved: false,
       scoreGained: 0,
       created2048: false,
+      mergedIndices: [],
     };
   }
 
+  const boardWithNewTile = spawnTile(move.board, random);
+  const spawnedIndex = boardWithNewTile.findIndex((value, index) => value !== move.board[index]);
+
   return {
     state: {
-      board: spawnTile(move.board, random),
+      board: boardWithNewTile,
       score: state.score + move.scoreGained,
       undo: { board: [...state.board], score: state.score },
     },
     moved: true,
     scoreGained: move.scoreGained,
     created2048: move.created2048,
+    mergedIndices: move.mergedIndices,
+    spawnedIndex: spawnedIndex >= 0 ? spawnedIndex : undefined,
   };
 }
 
