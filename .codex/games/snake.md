@@ -40,7 +40,7 @@ Add a cheerful, touch-friendly version of classic Snake. Players collect snacks 
 
 - Put the module in `src/games/snake/` and export `mount()` implementing the `GameModule` contract from `src/platform/game.ts`.
 - Register the card and dynamic loader in `src/main.ts`; preserve all existing game entries and load Snake only when selected.
-- Use browser APIs and TypeScript with HTML/CSS or Canvas 2D rendering. Do not add a game engine or dependencies.
+- Use KAPLAY for the game loop and canvas rendering, with semantic HTML controls around the canvas. Keep KAPLAY dynamically loaded with the Snake module.
 - Separate grid simulation, input queue validation, collisions, spawning, and scoring from rendering. Accept explicit elapsed time and injectable randomness for deterministic tests.
 - Own the movement loop within the mounted instance. Remove all event listeners, pending timers, and animation frames in `destroy()`, including window and document listeners.
 - Follow the repository's Bun commands and contributor instructions.

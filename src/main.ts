@@ -45,11 +45,19 @@ const games: GameCard[] = [
     icon: "🔢",
     accent: "#ffd43b",
   },
+  {
+    id: "snake",
+    name: "Snake",
+    description: "Nibble snacks and plan around your growing tail!",
+    badge: "Reflexes",
+    icon: "🐍",
+    accent: "#51cf66",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 
-type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048";
+type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake";
 type Route = "home" | GameId;
 
 const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
@@ -58,6 +66,7 @@ const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
   "tower-tangle": () => import("./games/tower-tangle"),
   "color-dash": () => import("./games/color-dash"),
   "2048": () => import("./games/2048"),
+  snake: () => import("./games/snake"),
 };
 
 function isGameId(value: string): value is GameId {

@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "dev": "bun --hot ./index.ts",
-    "build": "bunx tsc --noEmit && bun build ./index.html --outdir=dist --minify --target=browser",
+    "build": "bunx tsc --noEmit && bun build ./index.html --outdir=dist --minify --target=browser --splitting",
     "start": "bun ./index.ts",
     "test": "bun test"
   },
@@ -15,5 +15,8 @@
   },
   "peerDependencies": {
     "typescript": "^7"
+  },
+  "dependencies": {
+    "kaplay": "^3001.0.19"
   }
 }
