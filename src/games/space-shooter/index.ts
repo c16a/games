@@ -51,7 +51,8 @@ function saveBestScore(score: number): void {
 
 function gameSummary(state: ShooterState, timeScale = 1): string {
   const requirement = killsRequired(state.player.level);
-  return `Plane level ${state.player.level}. Position ${Math.round(state.player.x)}, ${Math.round(state.player.y)}. Health ${state.player.health} of ${state.player.maxHealth}. Score ${state.score}. ${state.player.killsTowardUpgrade} of ${requirement} kills toward the next upgrade. Fire rate ${boltsPerSecond(state.player.level)} per second. Fire power ${boltDamage(state.player.level)}. Game speed ${timeScale < 1 ? "slow motion" : "normal"}. ${state.enemies.length} enemies and ${state.bolts.length} bolts active.`;
+  const health = Math.round(state.player.health / state.player.maxHealth * 100);
+  return `Plane level ${state.player.level}. Health ${health} percent. Score ${state.score}. ${state.player.killsTowardUpgrade} of ${requirement} kills toward the next upgrade. Fire rate ${boltsPerSecond(state.player.level)} per second. Fire power ${boltDamage(state.player.level)}. Game speed ${timeScale < 1 ? "slow motion" : "normal"}. ${state.enemies.length} enemies and ${state.bolts.length} bolts active.`;
 }
 
 export async function mount({ container, exit }: GameContext): Promise<GameInstance> {
@@ -105,7 +106,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
           </div>
 
           <div class="visually-hidden" aria-label="Plane status">
-            <span>Health <strong data-shooter-health>100 / 100</strong></span>
+            <span>Health <strong data-shooter-health>100%</strong></span>
             <span>Next upgrade <strong data-shooter-progress>0 / 10</strong></span>
             <span>Fire rate <strong data-shooter-rate>1 per second</strong></span>
             <span>Fire power <strong data-shooter-power>10</strong></span>
@@ -194,22 +195,22 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
 
   function drawHud(): void {
     const required = killsRequired(state.player.level);
-    const entries = [
-      { icon: "♥", value: `${state.player.health}/${state.player.maxHealth}`, ratio: state.player.health / state.player.maxHealth, color: k.rgb(255, 107, 107) },
-      { icon: "★", value: `${state.player.killsTowardUpgrade}/${required}`, ratio: state.player.killsTowardUpgrade / required, color: k.rgb(255, 212, 59) },
-      { icon: "↯", value: `${boltsPerSecond(state.player.level)}/s`, color: k.rgb(116, 192, 252) },
-      { icon: "◆", value: String(boltDamage(state.player.level)), color: k.rgb(177, 151, 252) },
-    ];
-    entries.forEach((entry, index) => {
-      const x = 8 + index * 116;
-      k.drawRect({ pos: k.vec2(x, 8), width: 108, height: 47, radius: 11, color: k.rgb(22, 28, 55), opacity: 0.92, outline: { width: 2, color: k.rgb(111, 126, 170) } });
-      k.drawText({ text: entry.icon, pos: k.vec2(x + 11, 17), size: 23, font: "sans-serif", color: entry.color });
-      k.drawText({ text: entry.value, pos: k.vec2(x + 39, 19), size: 16, font: "sans-serif", color: k.rgb(244, 247, 255) });
-      if (entry.ratio !== undefined) {
-        k.drawRect({ pos: k.vec2(x + 9, 46), width: 90, height: 4, radius: 2, color: k.rgb(60, 69, 99) });
-        k.drawRect({ pos: k.vec2(x + 9, 46), width: 90 * Math.max(0, Math.min(1, entry.ratio)), height: 4, radius: 2, color: entry.color });
-      }
-    });
+    const health = Math.round(state.player.health / state.player.maxHealth * 100);
+    const upgradeProgress = Math.max(0, Math.min(1, state.player.killsTowardUpgrade / required));
+    const valueColor = k.rgb(244, 247, 255);
+
+    k.drawText({ text: "♥", pos: k.vec2(14, 17), size: 25, font: "sans-serif", color: k.rgb(255, 107, 107) });
+    k.drawText({ text: `${health}%`, pos: k.vec2(45, 20), size: 17, font: "sans-serif", color: valueColor });
+
+    k.drawText({ text: "★", pos: k.vec2(130, 17), size: 24, font: "sans-serif", color: k.rgb(255, 212, 59) });
+    k.drawRect({ pos: k.vec2(161, 28), width: 70, height: 7, color: k.rgb(60, 69, 99) });
+    k.drawRect({ pos: k.vec2(161, 28), width: 70 * upgradeProgress, height: 7, color: k.rgb(255, 212, 59) });
+
+    k.drawText({ text: "↯", pos: k.vec2(254, 17), size: 25, font: "sans-serif", color: k.rgb(116, 192, 252) });
+    k.drawText({ text: `${boltsPerSecond(state.player.level)}/s`, pos: k.vec2(283, 20), size: 17, font: "sans-serif", color: valueColor });
+
+    k.drawText({ text: "🔥", pos: k.vec2(379, 17), size: 22, font: "sans-serif", color: k.rgb(255, 146, 43) });
+    k.drawText({ text: String(boltDamage(state.player.level)), pos: k.vec2(411, 20), size: 17, font: "sans-serif", color: valueColor });
   }
 
   function drawEnemy(enemy: Enemy): void {
@@ -325,7 +326,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     scoreElement!.textContent = String(state.score);
     bestElement!.textContent = String(bestScore);
     levelElement!.textContent = String(state.player.level);
-    healthElement!.textContent = `${state.player.health} / ${state.player.maxHealth}`;
+    healthElement!.textContent = `${Math.round(state.player.health / state.player.maxHealth * 100)}%`;
     progressElement!.textContent = `${state.player.killsTowardUpgrade} / ${required}`;
     rateElement!.textContent = `${boltsPerSecond(state.player.level)} per second`;
     powerElement!.textContent = String(boltDamage(state.player.level));
@@ -341,7 +342,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     else if (state.status === "ready") messageElement!.textContent = "Start the run, then keep moving—the cannons fire for you!";
     else if (state.status === "paused") messageElement!.textContent = "Combat paused. Resume when ready.";
     else if (state.status === "running" && state.player.level > (previous?.player.level ?? state.player.level)) messageElement!.textContent = `Plane upgraded! Level ${state.player.level}: ${boltsPerSecond(state.player.level)}/sec fire rate, ${boltDamage(state.player.level)} fire power, and health restored.`;
-    else if (state.status === "running" && state.player.health < (previous?.player.health ?? state.player.health)) messageElement!.textContent = `Collision! Health at ${state.player.health} of ${state.player.maxHealth}.`;
+    else if (state.status === "running" && state.player.health < (previous?.player.health ?? state.player.health)) messageElement!.textContent = `Collision! Health at ${Math.round(state.player.health / state.player.maxHealth * 100)}%.`;
     else if (state.status === "running" && timeScale < 1) messageElement!.textContent = "Slow motion—touch to steer again, or tap pause.";
     else if (state.status === "running") messageElement!.textContent = "Cannons online—keep weaving through the enemy fleet!";
     if (state.status === "dead" && previous?.status !== "dead") showResult();
