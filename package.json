@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "dev": "bun --hot ./index.ts",
-    "build": "bunx tsc --noEmit && bun build ./index.html --outdir=dist --minify --target=browser --splitting",
+    "build": "bunx tsc --noEmit && bun build ./index.html --outdir=dist --minify --target=browser --splitting && bun run ./scripts/copy-chess-assets.ts",
     "start": "bun ./index.ts",
     "test": "bun test"
   },
@@ -17,6 +17,8 @@
     "typescript": "^7"
   },
   "dependencies": {
-    "kaplay": "^3001.0.19"
+    "chess.js": "1.4.0",
+    "kaplay": "^3001.0.19",
+    "stockfish": "18.0.8"
   }
 }

@@ -93,12 +93,20 @@ const games: GameCard[] = [
     icon: "🧭",
     accent: "#e8590c",
   },
+  {
+    id: "chess",
+    name: "Chess",
+    description: "Plan ahead and challenge a local computer opponent!",
+    badge: "Strategy",
+    icon: "♞",
+    accent: "#2f9e44",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 let kaplayPreloadScheduled = false;
 
-type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris" | "lunar-lander" | "space-shooter" | "endless-voyage";
+type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris" | "lunar-lander" | "space-shooter" | "endless-voyage" | "chess";
 type Route = "home" | GameId;
 
 const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
@@ -113,6 +121,7 @@ const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
   "lunar-lander": () => import("./games/lunar-lander"),
   "space-shooter": () => import("./games/space-shooter"),
   "endless-voyage": () => import("./games/endless-voyage"),
+  chess: () => import("./games/chess"),
 };
 
 function isGameId(value: string): value is GameId {
