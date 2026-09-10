@@ -14,6 +14,7 @@ import {
   pauseGame,
   restartGame,
   resumeGame,
+  scaledFrameSeconds,
   startGame,
   updateShooter,
 } from "./logic";
@@ -48,9 +49,9 @@ function saveBestScore(score: number): void {
   }
 }
 
-function gameSummary(state: ShooterState): string {
+function gameSummary(state: ShooterState, timeScale = 1): string {
   const requirement = killsRequired(state.player.level);
-  return `Plane level ${state.player.level}. Position ${Math.round(state.player.x)}, ${Math.round(state.player.y)}. Health ${state.player.health} of ${state.player.maxHealth}. Score ${state.score}. ${state.player.killsTowardUpgrade} of ${requirement} kills toward the next upgrade. ${state.enemies.length} enemies and ${state.bolts.length} bolts active.`;
+  return `Plane level ${state.player.level}. Position ${Math.round(state.player.x)}, ${Math.round(state.player.y)}. Health ${state.player.health} of ${state.player.maxHealth}. Score ${state.score}. ${state.player.killsTowardUpgrade} of ${requirement} kills toward the next upgrade. Fire rate ${boltsPerSecond(state.player.level)} per second. Fire power ${boltDamage(state.player.level)}. Game speed ${timeScale < 1 ? "slow motion" : "normal"}. ${state.enemies.length} enemies and ${state.bolts.length} bolts active.`;
 }
 
 export async function mount({ container, exit }: GameContext): Promise<GameInstance> {
@@ -60,8 +61,8 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   let destroyed = false;
   let hudElapsed = 0;
   let activeDrag: number | undefined;
+  let timeScale = 1;
   const heldDirections = new Set<HeldDirection>();
-  const pointerDirections = new Map<number, HeldDirection>();
   const effects: VisualEffect[] = [];
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -91,50 +92,32 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
         </div>
 
         <div class="shooter-workspace">
-          <div class="shooter-play-layout">
-            <div class="shooter-board-shell">
-              <canvas
-                class="shooter-canvas"
-                data-shooter-canvas
-                width="${BOARD_WIDTH}"
-                height="${BOARD_HEIGHT}"
-                tabindex="0"
-                role="img"
-                aria-label="Star Squadron playfield. Drag to steer; firing is automatic."
-              ></canvas>
-            </div>
-
-            <aside class="shooter-hud" aria-label="Plane status">
-              <div class="shooter-health-card">
-                <span>Hull</span>
-                <strong data-shooter-health>100 / 100</strong>
-                <div class="shooter-meter" aria-hidden="true"><i data-shooter-health-bar></i></div>
-              </div>
-              <div class="shooter-progress-card">
-                <span>Next upgrade</span>
-                <strong data-shooter-progress>0 / 10</strong>
-                <div class="shooter-meter shooter-meter--xp" aria-hidden="true"><i data-shooter-progress-bar></i></div>
-              </div>
-              <div class="shooter-stat"><span>Bolts/sec</span><strong data-shooter-rate>1</strong></div>
-              <div class="shooter-stat"><span>Bolt power</span><strong data-shooter-power>10</strong></div>
-              <p>Scouts are small and quick. Cruisers are larger, tougher, and hit harder.</p>
-            </aside>
+          <div class="shooter-board-shell">
+            <canvas
+              class="shooter-canvas"
+              data-shooter-canvas
+              width="${BOARD_WIDTH}"
+              height="${BOARD_HEIGHT}"
+              tabindex="0"
+              role="img"
+              aria-label="Star Squadron playfield with health, upgrade progress, fire rate, and fire power. Drag to steer; firing is automatic."
+            ></canvas>
           </div>
 
-          <p class="visually-hidden" data-shooter-summary>${gameSummary(state)}</p>
+          <div class="visually-hidden" aria-label="Plane status">
+            <span>Health <strong data-shooter-health>100 / 100</strong></span>
+            <span>Next upgrade <strong data-shooter-progress>0 / 10</strong></span>
+            <span>Fire rate <strong data-shooter-rate>1 per second</strong></span>
+            <span>Fire power <strong data-shooter-power>10</strong></span>
+          </div>
+
+          <p class="visually-hidden" data-shooter-summary>${gameSummary(state, timeScale)}</p>
           <p class="shooter-message" data-shooter-message aria-live="polite">Start the run, then keep moving—the cannons fire for you!</p>
 
-          <div class="shooter-pad" aria-label="Steer plane">
-            <button type="button" data-shooter-hold="left" aria-label="Hold to steer left">←</button>
-            <button type="button" data-shooter-hold="up" aria-label="Hold to steer up">↑</button>
-            <button type="button" data-shooter-hold="down" aria-label="Hold to steer down">↓</button>
-            <button type="button" data-shooter-hold="right" aria-label="Hold to steer right">→</button>
-          </div>
-
           <div class="shooter-actions">
-            <button class="soft-button" type="button" data-shooter-action="pause" disabled>Pause</button>
-            <button class="check-button shooter-start" type="button" data-shooter-action="start">Start run</button>
-            <button class="soft-button" type="button" data-shooter-action="new">New run</button>
+            <button class="soft-button shooter-icon-action" type="button" data-shooter-action="pause" aria-label="Pause game" title="Pause" disabled>⏸</button>
+            <button class="check-button shooter-start shooter-icon-action" type="button" data-shooter-action="start" aria-label="Start run" title="Start run">▶</button>
+            <button class="soft-button shooter-icon-action" type="button" data-shooter-action="new" aria-label="New run" title="New run">↻</button>
           </div>
         </div>
       </section>
@@ -147,9 +130,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   const bestElement = container.querySelector<HTMLElement>("[data-shooter-best]");
   const levelElement = container.querySelector<HTMLElement>("[data-shooter-level]");
   const healthElement = container.querySelector<HTMLElement>("[data-shooter-health]");
-  const healthBar = container.querySelector<HTMLElement>("[data-shooter-health-bar]");
   const progressElement = container.querySelector<HTMLElement>("[data-shooter-progress]");
-  const progressBar = container.querySelector<HTMLElement>("[data-shooter-progress-bar]");
   const rateElement = container.querySelector<HTMLElement>("[data-shooter-rate]");
   const powerElement = container.querySelector<HTMLElement>("[data-shooter-power]");
   const summaryElement = container.querySelector<HTMLElement>("[data-shooter-summary]");
@@ -157,7 +138,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   const pauseButton = container.querySelector<HTMLButtonElement>('[data-shooter-action="pause"]');
   const startButton = container.querySelector<HTMLButtonElement>('[data-shooter-action="start"]');
   const resultElement = container.querySelector<HTMLElement>("[data-shooter-result]");
-  if (!canvas || !scoreElement || !bestElement || !levelElement || !healthElement || !healthBar || !progressElement || !progressBar || !rateElement || !powerElement || !summaryElement || !messageElement || !pauseButton || !startButton || !resultElement) {
+  if (!canvas || !scoreElement || !bestElement || !levelElement || !healthElement || !progressElement || !rateElement || !powerElement || !summaryElement || !messageElement || !pauseButton || !startButton || !resultElement) {
     throw new Error("Star Squadron UI could not be created");
   }
 
@@ -182,31 +163,53 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
 
   function drawPlayer(): void {
     const { player } = state;
-    const levelWidth = Math.min(10, player.level - 1);
+    const levelWidth = Math.min(12, (player.level - 1) * 2);
+    const halfWidth = player.width / 2;
+    const halfHeight = player.height / 2;
     k.drawPolygon({
       pts: [
-        k.vec2(player.x, player.y - 25),
-        k.vec2(player.x + 18 + levelWidth, player.y + 20),
-        k.vec2(player.x, player.y + 12),
-        k.vec2(player.x - 18 - levelWidth, player.y + 20),
+        k.vec2(player.x, player.y - halfHeight),
+        k.vec2(player.x + halfWidth + levelWidth, player.y + halfHeight * 0.72),
+        k.vec2(player.x, player.y + halfHeight * 0.48),
+        k.vec2(player.x - halfWidth - levelWidth, player.y + halfHeight * 0.72),
       ],
       color: k.rgb(116, 192, 252),
-      outline: { width: 3, color: k.rgb(232, 240, 255) },
+      outline: { width: 4, color: k.rgb(232, 240, 255) },
     });
     k.drawPolygon({
-      pts: [k.vec2(player.x, player.y - 20), k.vec2(player.x + 7, player.y + 13), k.vec2(player.x - 7, player.y + 13)],
+      pts: [k.vec2(player.x, player.y - halfHeight * 0.72), k.vec2(player.x + 11, player.y + 18), k.vec2(player.x - 11, player.y + 18)],
       color: k.rgb(255, 212, 59),
-      outline: { width: 2, color: k.rgb(36, 31, 69) },
+      outline: { width: 3, color: k.rgb(36, 31, 69) },
     });
     for (let cannon = 0; cannon < Math.min(4, player.level); cannon += 1) {
       const side = cannon % 2 === 0 ? -1 : 1;
       const row = Math.floor(cannon / 2);
-      k.drawRect({ pos: k.vec2(player.x + side * (12 + row * 7) - 2, player.y - 5), width: 4, height: 17, radius: 2, color: k.rgb(255, 107, 107) });
+      k.drawRect({ pos: k.vec2(player.x + side * (21 + row * 10) - 3, player.y - 8), width: 6, height: 25, radius: 3, color: k.rgb(255, 107, 107) });
     }
     if (state.status === "running") {
       const flicker = reducedMotion ? 12 : 10 + Math.sin(state.elapsedSeconds * 35) * 4;
-      k.drawPolygon({ pts: [k.vec2(player.x - 7, player.y + 19), k.vec2(player.x, player.y + 28 + flicker), k.vec2(player.x + 7, player.y + 19)], color: k.rgb(255, 146, 43) });
+      k.drawPolygon({ pts: [k.vec2(player.x - 10, player.y + 28), k.vec2(player.x, player.y + 40 + flicker), k.vec2(player.x + 10, player.y + 28)], color: k.rgb(255, 146, 43) });
     }
+  }
+
+  function drawHud(): void {
+    const required = killsRequired(state.player.level);
+    const entries = [
+      { icon: "♥", value: `${state.player.health}/${state.player.maxHealth}`, ratio: state.player.health / state.player.maxHealth, color: k.rgb(255, 107, 107) },
+      { icon: "★", value: `${state.player.killsTowardUpgrade}/${required}`, ratio: state.player.killsTowardUpgrade / required, color: k.rgb(255, 212, 59) },
+      { icon: "↯", value: `${boltsPerSecond(state.player.level)}/s`, color: k.rgb(116, 192, 252) },
+      { icon: "◆", value: String(boltDamage(state.player.level)), color: k.rgb(177, 151, 252) },
+    ];
+    entries.forEach((entry, index) => {
+      const x = 8 + index * 116;
+      k.drawRect({ pos: k.vec2(x, 8), width: 108, height: 47, radius: 11, color: k.rgb(22, 28, 55), opacity: 0.92, outline: { width: 2, color: k.rgb(111, 126, 170) } });
+      k.drawText({ text: entry.icon, pos: k.vec2(x + 11, 17), size: 23, font: "sans-serif", color: entry.color });
+      k.drawText({ text: entry.value, pos: k.vec2(x + 39, 19), size: 16, font: "sans-serif", color: k.rgb(244, 247, 255) });
+      if (entry.ratio !== undefined) {
+        k.drawRect({ pos: k.vec2(x + 9, 46), width: 90, height: 4, radius: 2, color: k.rgb(60, 69, 99) });
+        k.drawRect({ pos: k.vec2(x + 9, 46), width: 90 * Math.max(0, Math.min(1, entry.ratio)), height: 4, radius: 2, color: entry.color });
+      }
+    });
   }
 
   function drawEnemy(enemy: Enemy): void {
@@ -267,12 +270,13 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     state.enemies.forEach(drawEnemy);
     drawPlayer();
     drawEffects();
+    drawHud();
   }
 
   function addEffects(events: readonly CombatEvent[]): void {
     for (const event of events) {
       if (event.kind === "destroyed") effects.push({ kind: event.kind, x: event.x, y: event.y, text: `+${event.points}`, elapsed: 0, duration: reducedMotion ? 0.08 : 0.55, large: false });
-      else if (event.kind === "damaged") effects.push({ kind: event.kind, x: event.x, y: event.y, text: `-${event.amount} HULL`, elapsed: 0, duration: reducedMotion ? 0.08 : 0.7, large: false });
+      else if (event.kind === "damaged") effects.push({ kind: event.kind, x: event.x, y: event.y, text: `-${event.amount} HEALTH`, elapsed: 0, duration: reducedMotion ? 0.08 : 0.7, large: false });
       else effects.push({ kind: event.kind, x: BOARD_WIDTH / 2, y: BOARD_HEIGHT * 0.4, text: `LEVEL ${event.level}!`, elapsed: 0, duration: reducedMotion ? 0.1 : 1.1, large: true });
     }
   }
@@ -288,7 +292,6 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
 
   function clearHeldDirections(): void {
     heldDirections.clear();
-    pointerDirections.clear();
     activeDrag = undefined;
   }
 
@@ -323,28 +326,30 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     bestElement!.textContent = String(bestScore);
     levelElement!.textContent = String(state.player.level);
     healthElement!.textContent = `${state.player.health} / ${state.player.maxHealth}`;
-    healthBar!.style.width = `${state.player.health / state.player.maxHealth * 100}%`;
-    healthBar!.classList.toggle("shooter-health-bar--low", state.player.health / state.player.maxHealth <= 0.3);
     progressElement!.textContent = `${state.player.killsTowardUpgrade} / ${required}`;
-    progressBar!.style.width = `${state.player.killsTowardUpgrade / required * 100}%`;
-    rateElement!.textContent = String(boltsPerSecond(state.player.level));
+    rateElement!.textContent = `${boltsPerSecond(state.player.level)} per second`;
     powerElement!.textContent = String(boltDamage(state.player.level));
-    summaryElement!.textContent = gameSummary(state);
+    summaryElement!.textContent = gameSummary(state, timeScale);
+    canvas!.dataset.gameSpeed = String(timeScale);
     pauseButton!.disabled = state.status === "ready" || state.status === "dead";
-    pauseButton!.textContent = state.status === "paused" ? "Resume" : "Pause";
+    pauseButton!.textContent = state.status === "paused" ? "▶" : "⏸";
+    pauseButton!.setAttribute("aria-label", state.status === "paused" ? "Resume game" : "Pause game");
+    pauseButton!.title = state.status === "paused" ? "Resume" : "Pause";
     startButton!.hidden = state.status !== "ready";
 
     if (state.status === "dead") messageElement!.textContent = `Mission over. Final score: ${state.score}.`;
     else if (state.status === "ready") messageElement!.textContent = "Start the run, then keep moving—the cannons fire for you!";
     else if (state.status === "paused") messageElement!.textContent = "Combat paused. Resume when ready.";
-    else if (state.status === "running" && state.player.level > (previous?.player.level ?? state.player.level)) messageElement!.textContent = `Plane upgraded! Level ${state.player.level}: ${boltsPerSecond(state.player.level)} bolts/sec, ${boltDamage(state.player.level)} power.`;
-    else if (state.status === "running" && state.player.health < (previous?.player.health ?? state.player.health)) messageElement!.textContent = `Collision! Hull at ${state.player.health} of ${state.player.maxHealth}.`;
+    else if (state.status === "running" && state.player.level > (previous?.player.level ?? state.player.level)) messageElement!.textContent = `Plane upgraded! Level ${state.player.level}: ${boltsPerSecond(state.player.level)}/sec fire rate, ${boltDamage(state.player.level)} fire power, and health restored.`;
+    else if (state.status === "running" && state.player.health < (previous?.player.health ?? state.player.health)) messageElement!.textContent = `Collision! Health at ${state.player.health} of ${state.player.maxHealth}.`;
+    else if (state.status === "running" && timeScale < 1) messageElement!.textContent = "Slow motion—touch to steer again, or tap pause.";
     else if (state.status === "running") messageElement!.textContent = "Cannons online—keep weaving through the enemy fleet!";
     if (state.status === "dead" && previous?.status !== "dead") showResult();
   }
 
   function start(): void {
     const previous = state;
+    timeScale = 1;
     state = startGame(state);
     hideResult();
     renderState(previous);
@@ -354,6 +359,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   function restart(): void {
     clearHeldDirections();
     effects.length = 0;
+    timeScale = 1;
     state = restartGame();
     hideResult();
     renderState();
@@ -364,6 +370,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     clearHeldDirections();
     const previous = state;
     state = state.status === "paused" ? resumeGame(state) : pauseGame(state);
+    if (state.status === "running") timeScale = 1;
     renderState(previous);
     canvas!.focus();
   }
@@ -391,6 +398,13 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   function onKeyDown(event: KeyboardEvent): void {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (event.target instanceof HTMLButtonElement || event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
+    if ((event.code === "Space" || event.key === " ") && !event.repeat) {
+      if (state.status === "running" || state.status === "paused") {
+        event.preventDefault();
+        togglePause();
+      }
+      return;
+    }
     const direction = keyDirection(event.key);
     if (!direction) return;
     event.preventDefault();
@@ -416,40 +430,30 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     if (event.pointerType === "mouse" && event.button !== 0) return;
     event.preventDefault();
     activeDrag = event.pointerId;
-    canvas!.setPointerCapture(event.pointerId);
+    if (event.pointerType !== "mouse") {
+      timeScale = 1;
+      renderState(state);
+    }
+    if (typeof canvas!.setPointerCapture === "function") canvas!.setPointerCapture(event.pointerId);
     const position = pointerToBoard(event);
-    state = movePlayerTo(state, position.x, position.y);
+    state = movePlayerTo(state, position.x, event.pointerType === "mouse" ? position.y : position.y - state.player.height * 0.7);
   }
 
   function onCanvasPointerMove(event: PointerEvent): void {
     if (activeDrag !== event.pointerId) return;
     event.preventDefault();
     const position = pointerToBoard(event);
-    state = movePlayerTo(state, position.x, position.y);
+    state = movePlayerTo(state, position.x, event.pointerType === "mouse" ? position.y : position.y - state.player.height * 0.7);
   }
 
   function onCanvasPointerEnd(event: PointerEvent): void {
     if (activeDrag !== event.pointerId) return;
     activeDrag = undefined;
-    if (canvas!.hasPointerCapture(event.pointerId)) canvas!.releasePointerCapture(event.pointerId);
-  }
-
-  function onContainerPointerDown(event: PointerEvent): void {
-    if (!(event.target instanceof Element)) return;
-    const button = event.target.closest<HTMLElement>("[data-shooter-hold]");
-    const direction = button?.dataset.shooterHold as HeldDirection | undefined;
-    if (!button || !direction) return;
-    event.preventDefault();
-    pointerDirections.set(event.pointerId, direction);
-    heldDirections.add(direction);
-    button.setPointerCapture(event.pointerId);
-  }
-
-  function onContainerPointerEnd(event: PointerEvent): void {
-    const direction = pointerDirections.get(event.pointerId);
-    if (!direction) return;
-    pointerDirections.delete(event.pointerId);
-    if (![...pointerDirections.values()].includes(direction)) heldDirections.delete(direction);
+    if (event.pointerType !== "mouse" && state.status === "running") {
+      timeScale = 0.2;
+      renderState(state);
+    }
+    if (typeof canvas!.hasPointerCapture === "function" && canvas!.hasPointerCapture(event.pointerId)) canvas!.releasePointerCapture(event.pointerId);
   }
 
   function onClick(event: MouseEvent): void {
@@ -475,7 +479,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     }
     if (state.status !== "running") return;
     const previous = state;
-    state = updateShooter(state, frameSeconds, controls());
+    state = updateShooter(state, scaledFrameSeconds(frameSeconds, timeScale), controls());
     addEffects(state.events);
     hudElapsed += frameSeconds;
     if (state.status !== previous.status || state.player.level !== previous.player.level || state.player.health !== previous.player.health || state.score !== previous.score || hudElapsed >= 0.12) {
@@ -485,9 +489,6 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   });
 
   container.addEventListener("click", onClick);
-  container.addEventListener("pointerdown", onContainerPointerDown);
-  container.addEventListener("pointerup", onContainerPointerEnd);
-  container.addEventListener("pointercancel", onContainerPointerEnd);
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", autoPause);
@@ -504,9 +505,6 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       clearHeldDirections();
       effects.length = 0;
       container.removeEventListener("click", onClick);
-      container.removeEventListener("pointerdown", onContainerPointerDown);
-      container.removeEventListener("pointerup", onContainerPointerEnd);
-      container.removeEventListener("pointercancel", onContainerPointerEnd);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", autoPause);

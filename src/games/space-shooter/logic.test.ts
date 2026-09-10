@@ -20,6 +20,7 @@ import {
   resolveBoltHit,
   resolveBoltHits,
   restartGame,
+  scaledFrameSeconds,
   spawnInterval,
   startGame,
   updateShooter,
@@ -51,17 +52,26 @@ describe("Space Shooter progression", () => {
     expect(upgraded.player.killsTowardUpgrade).toBe(1);
     expect(upgraded.player.lifetimeKills).toBe(2);
     expect(upgraded.player.maxHealth).toBe(SHOOTER_CONFIG.baseHealth + SHOOTER_CONFIG.healthUpgradeBonus);
-    expect(upgraded.player.health).toBe(70 + SHOOTER_CONFIG.healthUpgradeBonus);
+    expect(upgraded.player.health).toBe(105);
     expect(boltsPerSecond(upgraded.player.level)).toBe(2);
     expect(boltDamage(upgraded.player.level)).toBe(20);
   });
 
   test("can cross multiple upgrade thresholds in one award", () => {
     const destroyed = Array.from({ length: 25 }, (_, index) => enemy(index + 1, 0));
-    const upgraded = recordDestroyedEnemies(running(), destroyed);
+    const upgraded = recordDestroyedEnemies(running({ player: { ...createInitialState().player, health: 10 } }), destroyed);
     expect(upgraded.player.level).toBe(3);
     expect(upgraded.player.killsTowardUpgrade).toBe(0);
     expect(upgraded.player.lifetimeKills).toBe(25);
+    expect(upgraded.player.health).toBe(23);
+    expect(upgraded.player.maxHealth).toBe(130);
+  });
+
+  test("caps the 50-percent level-up refill at maximum health", () => {
+    const base = running({ player: { ...createInitialState().player, killsTowardUpgrade: 9 } });
+    const upgraded = recordDestroyedEnemies(base, [enemy(1, 0)]);
+    expect(upgraded.player.health).toBe(upgraded.player.maxHealth);
+    expect(upgraded.player.health).toBe(115);
   });
 
   test("keeps score independent from kill progress and deduplicates destruction", () => {
@@ -110,6 +120,12 @@ describe("Space Shooter bolt combat", () => {
 });
 
 describe("Space Shooter enemies and lifecycle", () => {
+  test("runs at one-fifth speed during the touch-release decision window", () => {
+    expect(scaledFrameSeconds(0.5, 0.2)).toBeCloseTo(0.1);
+    expect(scaledFrameSeconds(0.5, 1)).toBe(0.5);
+    expect(scaledFrameSeconds(0.5, 3)).toBe(0.5);
+  });
+
   test("supports keyboard-style steering, bounded drag steering, and pause", () => {
     const initial = running();
     const steered = updateShooter(initial, 0.1, { left: false, right: true, up: true, down: false }, () => 0.9);

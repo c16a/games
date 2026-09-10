@@ -1,7 +1,7 @@
 export const BOARD_WIDTH = 480;
 export const BOARD_HEIGHT = 720;
-export const PLAYER_WIDTH = 42;
-export const PLAYER_HEIGHT = 48;
+export const PLAYER_WIDTH = 72;
+export const PLAYER_HEIGHT = 80;
 
 export const SHOOTER_CONFIG = {
   baseKills: 10,
@@ -125,6 +125,10 @@ export function boltsPerSecond(level: number): number {
 
 export function boltDamage(level: number): number {
   return 10 * Math.max(1, Math.floor(level));
+}
+
+export function scaledFrameSeconds(seconds: number, timeScale: number): number {
+  return Math.max(0, seconds) * Math.max(0, Math.min(1, timeScale));
 }
 
 export function spawnInterval(level: number): number {
@@ -258,7 +262,7 @@ export function recordDestroyedEnemies(state: ShooterState, destroyed: readonly 
     progress -= killsRequired(level);
     level += 1;
     maxHealth += SHOOTER_CONFIG.healthUpgradeBonus;
-    health += SHOOTER_CONFIG.healthUpgradeBonus;
+    health = Math.min(maxHealth, Math.ceil(health * 1.5));
     events.push({ kind: "upgraded", level });
   }
 
