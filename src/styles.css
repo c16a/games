@@ -1468,10 +1468,24 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 }
 
 @media (max-width: 460px) {
+  .picker-page { background: var(--cream); }
+  .orbit-doodle { display: none; }
   .picker-intro h1 { font-size: 3.2rem; max-width: 300px; }
-  .game-card { grid-template-columns: 34% 1fr; min-height: 165px; }
-  .game-art { min-height: 100%; border-right: 4px solid var(--ink); border-bottom: 0; }
-  .game-card-content { padding: 14px; }
+  .game-shelf { justify-items: center; }
+  .game-card {
+    grid-template-columns: 1fr;
+    width: min(100%, 380px);
+    min-height: 0;
+    text-align: center;
+  }
+  .game-art {
+    min-height: 96px;
+    background: transparent;
+    border-right: 0;
+    border-bottom: 0;
+  }
+  .game-art .art-bubble, .game-art .mini-pegs { display: none; }
+  .game-card-content { align-items: center; padding: 0 16px 18px; text-align: center; }
   .game-card-content strong { font-size: 1.45rem; }
   .game-card-content > span:not(.game-badge):not(.play-label) { font-size: .85rem; }
   .game-icon { font-size: 3.25rem; }
