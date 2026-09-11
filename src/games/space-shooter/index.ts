@@ -94,6 +94,32 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
 
         <div class="shooter-workspace">
           <div class="shooter-board-shell">
+            <div class="shooter-hud" aria-label="Plane status">
+              <div class="shooter-hud-stat shooter-hud-health" title="Health">
+                <span class="shooter-hud-icon" aria-hidden="true">♥</span>
+                <strong data-shooter-health>100%</strong>
+              </div>
+              <div class="shooter-hud-stat shooter-hud-upgrade" title="Progress to next upgrade">
+                <span class="shooter-hud-icon" aria-hidden="true">★</span>
+                <span
+                  class="shooter-upgrade-track"
+                  data-shooter-progress
+                  role="progressbar"
+                  aria-label="Progress to next upgrade"
+                  aria-valuemin="0"
+                  aria-valuemax="10"
+                  aria-valuenow="0"
+                ><span></span></span>
+              </div>
+              <div class="shooter-hud-stat shooter-hud-rate" title="Fire rate">
+                <span class="shooter-hud-icon" aria-hidden="true">⚡</span>
+                <strong data-shooter-rate>1/s</strong>
+              </div>
+              <div class="shooter-hud-stat shooter-hud-power" title="Fire power">
+                <span class="shooter-hud-icon" aria-hidden="true">🔥</span>
+                <strong data-shooter-power>10</strong>
+              </div>
+            </div>
             <canvas
               class="shooter-canvas"
               data-shooter-canvas
@@ -103,13 +129,6 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
               role="img"
               aria-label="Star Squadron playfield with health, upgrade progress, fire rate, and fire power. Drag to steer; firing is automatic."
             ></canvas>
-          </div>
-
-          <div class="visually-hidden" aria-label="Plane status">
-            <span>Health <strong data-shooter-health>100%</strong></span>
-            <span>Next upgrade <strong data-shooter-progress>0 / 10</strong></span>
-            <span>Fire rate <strong data-shooter-rate>1 per second</strong></span>
-            <span>Fire power <strong data-shooter-power>10</strong></span>
           </div>
 
           <p class="visually-hidden" data-shooter-summary>${gameSummary(state, timeScale)}</p>
@@ -193,26 +212,6 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     }
   }
 
-  function drawHud(): void {
-    const required = killsRequired(state.player.level);
-    const health = Math.round(state.player.health / state.player.maxHealth * 100);
-    const upgradeProgress = Math.max(0, Math.min(1, state.player.killsTowardUpgrade / required));
-    const valueColor = k.rgb(244, 247, 255);
-
-    k.drawText({ text: "♥", pos: k.vec2(14, 17), size: 25, font: "sans-serif", color: k.rgb(255, 107, 107) });
-    k.drawText({ text: `${health}%`, pos: k.vec2(45, 20), size: 17, font: "sans-serif", color: valueColor });
-
-    k.drawText({ text: "★", pos: k.vec2(130, 17), size: 24, font: "sans-serif", color: k.rgb(255, 212, 59) });
-    k.drawRect({ pos: k.vec2(161, 28), width: 70, height: 7, color: k.rgb(60, 69, 99) });
-    k.drawRect({ pos: k.vec2(161, 28), width: 70 * upgradeProgress, height: 7, color: k.rgb(255, 212, 59) });
-
-    k.drawText({ text: "↯", pos: k.vec2(254, 17), size: 25, font: "sans-serif", color: k.rgb(116, 192, 252) });
-    k.drawText({ text: `${boltsPerSecond(state.player.level)}/s`, pos: k.vec2(283, 20), size: 17, font: "sans-serif", color: valueColor });
-
-    k.drawText({ text: "🔥", pos: k.vec2(379, 17), size: 22, font: "sans-serif", color: k.rgb(255, 146, 43) });
-    k.drawText({ text: String(boltDamage(state.player.level)), pos: k.vec2(411, 20), size: 17, font: "sans-serif", color: valueColor });
-  }
-
   function drawEnemy(enemy: Enemy): void {
     if (enemy.kind === "scout") {
       k.drawPolygon({
@@ -271,7 +270,6 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     state.enemies.forEach(drawEnemy);
     drawPlayer();
     drawEffects();
-    drawHud();
   }
 
   function addEffects(events: readonly CombatEvent[]): void {
@@ -327,8 +325,10 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     bestElement!.textContent = String(bestScore);
     levelElement!.textContent = String(state.player.level);
     healthElement!.textContent = `${Math.round(state.player.health / state.player.maxHealth * 100)}%`;
-    progressElement!.textContent = `${state.player.killsTowardUpgrade} / ${required}`;
-    rateElement!.textContent = `${boltsPerSecond(state.player.level)} per second`;
+    progressElement!.style.setProperty("--shooter-upgrade-progress", `${Math.max(0, Math.min(1, state.player.killsTowardUpgrade / required)) * 100}%`);
+    progressElement!.setAttribute("aria-valuemax", String(required));
+    progressElement!.setAttribute("aria-valuenow", String(state.player.killsTowardUpgrade));
+    rateElement!.textContent = `${boltsPerSecond(state.player.level)}/s`;
     powerElement!.textContent = String(boltDamage(state.player.level));
     summaryElement!.textContent = gameSummary(state, timeScale);
     canvas!.dataset.gameSpeed = String(timeScale);

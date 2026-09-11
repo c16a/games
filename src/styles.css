@@ -844,7 +844,33 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .shooter-scores strong { font-size: 1.2rem; line-height: 1.1; }
 .shooter-scores span { margin-bottom: 3px; color: #35606b; font-size: .66rem; font-weight: 900; text-transform: uppercase; }
 .shooter-workspace { margin-top: 24px; padding: clamp(8px, 2vw, 18px); background: white; border: 3px solid var(--ink); border-radius: 30px; box-shadow: 8px 9px 0 var(--ink); }
-.shooter-board-shell { width: min(560px, 100%); margin: 0 auto; padding: 7px; background: linear-gradient(145deg, #22b8cf, #748ffc); border: 4px solid var(--ink); border-radius: 27px; box-shadow: 5px 6px 0 rgba(36,31,69,.18); }
+.shooter-board-shell { position: relative; width: min(560px, 100%); margin: 0 auto; padding: 7px; background: linear-gradient(145deg, #22b8cf, #748ffc); border: 4px solid var(--ink); border-radius: 27px; box-shadow: 5px 6px 0 rgba(36,31,69,.18); }
+.shooter-hud {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  left: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1.35fr 1fr 1fr;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 5px 7px;
+  color: #f8fbff;
+  background: rgba(12, 20, 50, .9);
+  border-bottom: 2px solid rgba(116, 192, 252, .72);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, .28);
+  pointer-events: none;
+}
+.shooter-hud-stat { display: flex; min-width: 0; align-items: center; justify-content: center; gap: 5px; }
+.shooter-hud-stat strong { color: #fff; font-size: clamp(.78rem, 3.4vw, .98rem); font-variant-numeric: tabular-nums; line-height: 1; text-shadow: 0 2px 3px #000; white-space: nowrap; }
+.shooter-hud-icon { flex: 0 0 auto; font-size: clamp(1rem, 4vw, 1.28rem); line-height: 1; filter: drop-shadow(0 2px 2px #000); }
+.shooter-hud-health .shooter-hud-icon { color: #ff6b6b; }
+.shooter-hud-upgrade .shooter-hud-icon { color: #ffd43b; }
+.shooter-hud-rate .shooter-hud-icon { color: #74c0fc; }
+.shooter-upgrade-track { position: relative; width: min(74px, 100%); height: 9px; overflow: hidden; background: #465273; box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
+.shooter-upgrade-track > span { display: block; width: var(--shooter-upgrade-progress, 0%); height: 100%; background: linear-gradient(90deg, #ffd43b, #ff922b); transition: width .18s ease-out; }
 .shooter-canvas { display: block; width: 100% !important; max-width: 100%; height: auto !important; aspect-ratio: 2 / 3; border: 3px solid var(--ink); border-radius: 17px; outline-offset: 5px; touch-action: none; user-select: none; cursor: crosshair; }
 .shooter-message { min-height: 25px; margin: 14px 0 10px; color: #4d6373; text-align: center; font-size: .9rem; font-weight: 800; }
 .shooter-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; max-width: 420px; margin: 0 auto; }
