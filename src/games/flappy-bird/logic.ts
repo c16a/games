@@ -9,6 +9,7 @@ export const GRAVITY = 1_080;
 export const FLAP_VELOCITY = -405;
 
 export type FlappyStatus = "ready" | "running" | "paused" | "over";
+export type FlappyKeyboardAction = "flap" | "pause" | "toggle-pause";
 
 export interface PipePair {
   id: number;
@@ -29,6 +30,15 @@ export interface FlappyState {
 }
 
 export type RandomSource = () => number;
+
+export function keyboardActionFor(key: string, status: FlappyStatus): FlappyKeyboardAction | null {
+  if (key === "Escape") return status === "running" ? "pause" : null;
+  if (key === " " || key === "ArrowUp" || key.toLowerCase() === "w") {
+    return status === "ready" || status === "running" ? "flap" : null;
+  }
+  if (key.toLowerCase() === "p" && (status === "running" || status === "paused")) return "toggle-pause";
+  return null;
+}
 
 export function gapHeightForScore(score: number): number {
   return Math.max(154, 194 - score * 2.4);

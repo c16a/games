@@ -588,6 +588,27 @@ export function remainingCoins(state: CarromState, kind: CoinKind): number {
   return state.coins.filter((coin) => coin.kind === kind && !coin.pocketed).length;
 }
 
+export function scoreAwardsBetween(previous: CarromState, current: CarromState, scorer: Player): number[] {
+  let remainingPoints = current.score[scorer] - previous.score[scorer];
+  if (remainingPoints <= 0) return [];
+
+  const previousCoins = new Map(previous.coins.map((coin) => [coin.id, coin]));
+  const awards: number[] = current.coins.flatMap((coin) => {
+    const newlyPocketed = !previousCoins.get(coin.id)?.pocketed && coin.pocketed;
+    if (!newlyPocketed || (coin.kind !== "black" && coin.kind !== "white")) return [];
+    const points = COIN_POINTS[coin.kind];
+    remainingPoints -= points;
+    return [points];
+  });
+
+  while (remainingPoints >= COIN_POINTS.red) {
+    awards.push(COIN_POINTS.red);
+    remainingPoints -= COIN_POINTS.red;
+  }
+  if (remainingPoints > 0) awards.push(remainingPoints);
+  return awards;
+}
+
 export function shotPower(striker: Vector, pointer: Vector): number {
   return Math.round(clamp(Math.hypot(pointer.x - striker.x, pointer.y - striker.y) / MAX_PULL, 0, 1) * 100);
 }

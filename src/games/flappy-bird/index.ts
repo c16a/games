@@ -9,6 +9,7 @@ import {
   type FlappyState,
   createInitialState,
   flap,
+  keyboardActionFor,
   nextPipeDistance,
   pauseRun,
   pipeSpeedForScore,
@@ -52,7 +53,7 @@ function saveBestScore(score: number): void {
 }
 
 function statusMessage(state: FlappyState): string {
-  if (state.status === "ready") return "Tap the sky or press Flap to take off!";
+  if (state.status === "ready") return "Tap the sky or press Space to take off!";
   if (state.status === "paused") return "Flight paused. Take a breath!";
   if (state.status === "over") return `Bonk! You flew through ${state.score} ${state.score === 1 ? "gap" : "gaps"}.`;
   if (state.score === 0) return "Keep tapping to stay in the air!";
@@ -97,7 +98,7 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
           <div class="flappy-mission-icon" aria-hidden="true">🐤</div>
           <div>
             <p class="mission-title">Flutter through every gap!</p>
-            <p class="mission-copy">Tap anywhere on the sky, press Space, or use the big Flap button.</p>
+            <p class="mission-copy">Tap anywhere on the sky or press Space to take off and flap.</p>
           </div>
           <div class="flappy-scores" aria-label="Flight score">
             <div><span>Score</span><strong data-flappy-score>0</strong></div>
@@ -115,8 +116,18 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
               height="${BOARD_HEIGHT}"
               tabindex="0"
               role="application"
-              aria-label="Flappy Bird playfield. Tap or press Space or Arrow Up to flap through the green gates."
+              aria-label="Flappy Bird playfield. Tap or press Space to start and flap through the green gates. Press Escape to pause."
             ></canvas>
+            <button
+              class="flappy-board-pause"
+              type="button"
+              data-flappy-action="pause"
+              aria-label="Pause game"
+              disabled
+            >
+              <span aria-hidden="true">⏸</span>
+              <strong>Pause</strong>
+            </button>
             <div class="flappy-board-score" data-flappy-board-score aria-hidden="true">0</div>
             <div class="flappy-board-prompt" data-flappy-prompt aria-hidden="true">
               <strong>Tap to flap!</strong>
@@ -126,15 +137,6 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
 
           <p class="flappy-message" data-flappy-message aria-live="polite">${statusMessage(state)}</p>
           <p class="visually-hidden" data-flappy-summary>${flightSummary(state)}</p>
-
-          <div class="flappy-controls" aria-label="Flight controls">
-            <button class="soft-button flappy-pause" type="button" data-flappy-action="pause" disabled>Pause</button>
-            <button class="flappy-flap" type="button" data-flappy-action="flap" aria-label="Flap upward">
-              <span aria-hidden="true">↑</span>
-              <strong>Flap!</strong>
-            </button>
-            <button class="soft-button" type="button" data-flappy-action="new">New run</button>
-          </div>
         </div>
       </section>
 
@@ -150,9 +152,8 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
   const messageElement = container.querySelector<HTMLElement>("[data-flappy-message]");
   const summaryElement = container.querySelector<HTMLElement>("[data-flappy-summary]");
   const pauseButton = container.querySelector<HTMLButtonElement>('[data-flappy-action="pause"]');
-  const flapButton = container.querySelector<HTMLButtonElement>('[data-flappy-action="flap"]');
   const resultElement = container.querySelector<HTMLElement>("[data-flappy-result]");
-  if (!canvas || !scoreElement || !bestElement || !paceElement || !boardScore || !promptElement || !messageElement || !summaryElement || !pauseButton || !flapButton || !resultElement) {
+  if (!canvas || !scoreElement || !bestElement || !paceElement || !boardScore || !promptElement || !messageElement || !summaryElement || !pauseButton || !resultElement) {
     throw new Error("Flappy Bird UI could not be created");
   }
 
@@ -284,12 +285,12 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
     messageElement!.textContent = statusMessage(state);
     summaryElement!.textContent = flightSummary(state);
     pauseButton!.disabled = state.status === "ready" || state.status === "over";
-    pauseButton!.textContent = state.status === "paused" ? "Resume" : "Pause";
-    flapButton!.disabled = state.status === "paused" || state.status === "over";
-    flapButton!.querySelector("strong")!.textContent = state.status === "ready" ? "Start!" : "Flap!";
+    pauseButton!.setAttribute("aria-label", state.status === "paused" ? "Resume game" : "Pause game");
+    pauseButton!.querySelector("span")!.textContent = state.status === "paused" ? "▶" : "⏸";
+    pauseButton!.querySelector("strong")!.textContent = state.status === "paused" ? "Resume" : "Pause";
     promptElement!.hidden = state.status === "running";
     if (state.status === "ready") promptElement!.innerHTML = "<strong>Tap to flap!</strong><span>Fly through the gaps</span>";
-    else if (state.status === "paused") promptElement!.innerHTML = "<strong>Paused</strong><span>Press Resume when ready</span>";
+    else if (state.status === "paused") promptElement!.innerHTML = "<strong>Paused</strong><span>Tap Resume when ready</span>";
     else if (state.status === "over") promptElement!.innerHTML = "<strong>Good flight!</strong><span>Ready for another?</span>";
     if (state.status === "over" && previous?.status !== "over") showResult(newBest);
   }
@@ -317,6 +318,12 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
     canvas!.focus({ preventScroll: true });
   }
 
+  function pause(): void {
+    const previous = state;
+    state = pauseRun(state);
+    renderState(previous);
+  }
+
   function onPointerDown(event: PointerEvent): void {
     if (event.button !== 0 || state.status === "paused" || state.status === "over") return;
     event.preventDefault();
@@ -325,11 +332,17 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
 
   function onKeyDown(event: KeyboardEvent): void {
     if (event.metaKey || event.ctrlKey || event.altKey || event.repeat) return;
+    const action = keyboardActionFor(event.key, state.status);
+    if (action === "pause") {
+      event.preventDefault();
+      pause();
+      return;
+    }
     if (event.target instanceof HTMLButtonElement || event.target instanceof HTMLInputElement) return;
-    if (event.key === " " || event.key === "ArrowUp" || event.key.toLowerCase() === "w") {
+    if (action === "flap") {
       event.preventDefault();
       flapNow();
-    } else if (event.key.toLowerCase() === "p" && (state.status === "running" || state.status === "paused")) {
+    } else if (action === "toggle-pause") {
       event.preventDefault();
       togglePause();
     }
@@ -342,15 +355,12 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
     if (!target) return;
     if (target.dataset.flappyAction === "exit" || target.dataset.flappyResultAction === "exit") exit();
     else if (target.dataset.flappyAction === "new" || target.dataset.flappyResultAction === "again") restart();
-    else if (target.dataset.flappyAction === "flap") flapNow();
     else if (target.dataset.flappyAction === "pause") togglePause();
   }
 
   function onVisibilityChange(): void {
     if (!document.hidden || state.status !== "running") return;
-    const previous = state;
-    state = pauseRun(state);
-    renderState(previous);
+    pause();
   }
 
   k.onDraw(drawScene);

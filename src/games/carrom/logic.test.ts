@@ -20,6 +20,7 @@ import {
   positionPlayerStriker,
   predictTrajectory,
   remainingCoins,
+  scoreAwardsBetween,
   shotPower,
   updateCarrom,
   velocityFromPull,
@@ -248,6 +249,18 @@ describe("Carrom physics and turns", () => {
     expect(state.score.player).toBe(COIN_POINTS.red + COIN_POINTS.white);
     expect(state.coins.find(({ kind }) => kind === "red")?.pocketed).toBe(true);
     expect(state.turn).toBe("player");
+  });
+
+  test("reports separate HUD awards when a standard coin also covers red", () => {
+    const previous = createInitialState();
+    const white = previous.coins.find(({ kind }) => kind === "white")!;
+    const current = {
+      ...previous,
+      score: { ...previous.score, player: COIN_POINTS.white + COIN_POINTS.red },
+      coins: previous.coins.map((coin) => coin.id === white.id ? { ...coin, pocketed: true } : coin),
+    };
+
+    expect(scoreAwardsBetween(previous, current, "player")).toEqual([COIN_POINTS.white, COIN_POINTS.red]);
   });
 
   test("an uncovered red returns to the center and the turn passes", () => {

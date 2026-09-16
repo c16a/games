@@ -10,6 +10,7 @@ import {
   createInitialState,
   flap,
   gapHeightForScore,
+  keyboardActionFor,
   nextPipeDistance,
   pauseRun,
   pipeSpeedForScore,
@@ -71,6 +72,14 @@ describe("Flappy Bird logic", () => {
     const paused = pauseRun(running);
     expect(updateFlappy(paused, 1, () => 0.5)).toEqual(paused);
     expect(resumeRun(paused).status).toBe("running");
+  });
+
+  test("maps Space to takeoff and Escape to pause without resuming", () => {
+    expect(keyboardActionFor(" ", "ready")).toBe("flap");
+    expect(keyboardActionFor(" ", "running")).toBe("flap");
+    expect(keyboardActionFor(" ", "paused")).toBeNull();
+    expect(keyboardActionFor("Escape", "running")).toBe("pause");
+    expect(keyboardActionFor("Escape", "paused")).toBeNull();
   });
 
   test("difficulty ramps while preserving a playable gap", () => {
