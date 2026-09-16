@@ -275,7 +275,6 @@ function renderPicker(): void {
               <span class="game-badge">${game.badge}</span>
               <strong>${game.name}</strong>
               <span>${game.description}</span>
-              <span class="play-label">Play now <b aria-hidden="true">→</b></span>
             </span>
           </button>`).join("")}
         <div class="coming-card" aria-label="More games coming soon">

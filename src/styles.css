@@ -275,9 +275,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .game-card-content { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: clamp(18px, 3vw, 32px); }
 .game-badge { color: #c92e5b; background: #fff0f4; box-shadow: none; }
 .game-card-content strong { margin-top: 10px; font-size: clamp(1.55rem, 3vw, 2.5rem); line-height: 1; }
-.game-card-content > span:not(.game-badge):not(.play-label) { color: #635d7c; font-size: 1rem; }
-.play-label { display: inline-flex; gap: 9px; align-items: center; margin-top: 16px; color: var(--purple-dark); font-weight: 900; }
-.play-label b { display: grid; place-items: center; width: 30px; height: 30px; color: white; background: var(--purple); border-radius: 50%; }
+.game-card-content > span:not(.game-badge) { color: #635d7c; font-size: 1rem; }
 
 .coming-card {
   grid-column: 1 / -1;
@@ -2001,7 +1999,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 
 :root[data-theme="dark"] :is(
   .picker-intro p,
-  .game-card-content > span:not(.game-badge):not(.play-label),
+  .game-card-content > span:not(.game-badge),
   .game-hint,
   .clue-key,
   .empty-attempts,
@@ -2101,26 +2099,12 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .picker-page { background: var(--cream); }
   .orbit-doodle { display: none; }
   .picker-intro h1 { font-size: 3.2rem; max-width: 300px; }
-  .game-shelf { justify-items: center; }
-  .game-card {
-    grid-template-columns: 1fr;
-    width: min(100%, 380px);
-    min-height: 0;
-    text-align: center;
-  }
-  .game-art {
-    min-height: 96px;
-    background: transparent;
-    border-right: 0;
-    border-bottom: 0;
-  }
-  .game-art .art-bubble, .game-art .mini-pegs { display: none; }
-  .game-card-content { align-items: center; padding: 0 16px 18px; text-align: center; }
-  .game-card-content strong { font-size: 1.45rem; }
-  .game-card-content > span:not(.game-badge):not(.play-label) { font-size: .85rem; }
-  .game-icon { font-size: 3.25rem; }
+  .game-card { grid-template-columns: 34% 1fr; min-height: 150px; }
+  .game-card-content { padding: 14px; }
+  .game-card-content strong { font-size: 1.4rem; }
+  .game-card-content > span:not(.game-badge) { font-size: .82rem; }
+  .game-icon { font-size: 3rem; }
   .game-badge { padding: 5px 9px; font-size: .72rem; }
-  .play-label { margin-top: 11px; font-size: .9rem; }
   .game-page { padding-inline: 10px; }
   .game-header {
     grid-template-columns: auto 1fr auto;
