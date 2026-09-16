@@ -13,6 +13,7 @@ export const FRICTION = 205;
 export const COIN_POINTS = { black: 5, white: 10, red: 50 } as const;
 
 export type Difficulty = "easy" | "hard";
+export type GameMode = "onePlayer" | "twoPlayer";
 export type Player = "player" | "ai";
 export type CoinKind = keyof typeof COIN_POINTS;
 export type GamePhase = "aiming" | "moving" | "aiThinking" | "over";
@@ -39,6 +40,7 @@ export interface ShotRecord {
 }
 
 export interface CarromState {
+  mode: GameMode;
   difficulty: Difficulty;
   phase: GamePhase;
   turn: Player;
@@ -130,8 +132,9 @@ function strikerAt(turn: Player, x = BOARD_SIZE / 2): Disc {
   };
 }
 
-export function createInitialState(difficulty: Difficulty = "easy"): CarromState {
+export function createInitialState(difficulty: Difficulty = "easy", mode: GameMode = "onePlayer"): CarromState {
   return {
+    mode,
     difficulty,
     phase: "aiming",
     turn: "player",
@@ -145,7 +148,7 @@ export function createInitialState(difficulty: Difficulty = "easy"): CarromState
 }
 
 export function setDifficulty(state: CarromState, difficulty: Difficulty): CarromState {
-  return state.difficulty === difficulty ? state : createInitialState(difficulty);
+  return state.difficulty === difficulty ? state : createInitialState(difficulty, state.mode);
 }
 
 export function displayToBoard(clientX: number, clientY: number, rect: Pick<DOMRect, "left" | "top" | "width" | "height">): Vector {
@@ -173,9 +176,10 @@ export function findOpenStrikerX(coins: readonly Disc[], preferredX: number, bas
 }
 
 export function positionPlayerStriker(state: CarromState, x: number): CarromState {
-  if (state.phase !== "aiming" || state.turn !== "player") return state;
-  const openX = findOpenStrikerX(state.coins, x, PLAYER_BASELINE_Y);
-  return { ...state, striker: strikerAt("player", openX) };
+  if (state.phase !== "aiming") return state;
+  const baselineY = state.turn === "player" ? PLAYER_BASELINE_Y : AI_BASELINE_Y;
+  const openX = findOpenStrikerX(state.coins, x, baselineY);
+  return { ...state, striker: strikerAt(state.turn, openX) };
 }
 
 export function velocityFromPull(striker: Vector, pointer: Vector): Vector {
@@ -200,8 +204,8 @@ function startShot(state: CarromState, shooter: Player, striker: Disc, velocity:
 }
 
 export function launchPlayerShot(state: CarromState, pointer: Vector): CarromState {
-  if (state.phase !== "aiming" || state.turn !== "player") return state;
-  return startShot(state, "player", state.striker, velocityFromPull(state.striker, pointer));
+  if (state.phase !== "aiming") return state;
+  return startShot(state, state.turn, state.striker, velocityFromPull(state.striker, pointer));
 }
 
 function rayCircleDistance(origin: Vector, direction: Vector, center: Vector, radius: number): number | null {
@@ -386,7 +390,7 @@ export function chooseAiShot(state: CarromState, difficulty = state.difficulty, 
 }
 
 export function launchAiShot(state: CarromState, random: () => number = Math.random): CarromState {
-  if (state.phase !== "aiThinking" || state.turn !== "ai") return state;
+  if (state.mode !== "onePlayer" || state.phase !== "aiThinking" || state.turn !== "ai") return state;
   const choice = chooseAiShot(state, state.difficulty, random);
   return startShot(state, "ai", strikerAt("ai", choice.strikerX), choice.velocity);
 }
@@ -545,7 +549,7 @@ function finishShot(state: CarromState): CarromState {
   const preferredX = findOpenStrikerX(coins, BOARD_SIZE / 2, baselineY);
   return {
     ...state,
-    phase: turn === "player" ? "aiming" : "aiThinking",
+    phase: turn === "player" || state.mode === "twoPlayer" ? "aiming" : "aiThinking",
     turn,
     coins,
     score,

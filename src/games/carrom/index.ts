@@ -15,6 +15,7 @@ import {
   type CarromState,
   type Difficulty,
   type Disc,
+  type GameMode,
   type GuidePoint,
   type TrajectoryPrediction,
   type Vector,
@@ -49,38 +50,48 @@ const COLORS = {
 
 const PLAYER_SCORE_VIBRATION_MS = 50;
 
+function playerName(state: CarromState, player = state.turn): string {
+  if (state.mode === "twoPlayer") return player === "player" ? "Player 1" : "Player 2";
+  return player === "player" ? "You" : "Computer";
+}
+
 function statusMessage(state: CarromState): string {
   if (state.phase === "over") {
     if (state.winner === "draw") return "What a match — it is a draw!";
-    return state.winner === "player" ? "You scored the most points. Brilliant!" : "The computer scored the most points. Great game!";
+    return `${playerName(state, state.winner!)} scored the most points. Brilliant!`;
   }
   if (state.phase === "aiThinking") {
     if (state.pendingRed === "ai") return "Computer must cover red with a black or white coin…";
     return `${state.difficulty === "hard" ? "Clever" : "Friendly"} computer is lining up a shot…`;
   }
   if (state.phase === "moving") {
-    if (state.shot?.coveringRed) return state.turn === "player" ? "Cover red — pocket black or white!" : "Computer is trying to cover red…";
-    return state.turn === "player" ? "Nice release — watch the coins!" : "Computer shot in motion…";
+    if (state.shot?.coveringRed) return `${playerName(state)} must cover red with a black or white coin!`;
+    const shotOwner = state.mode === "onePlayer" && state.turn === "player" ? "Your" : `${playerName(state)}'s`;
+    return `${shotOwner} shot — watch the coins!`;
   }
-  if (state.pendingRed === "player") return "Cover red now: pocket a black or white coin on this shot!";
+  if (state.pendingRed === state.turn) return `${playerName(state)}, cover red now with a black or white coin!`;
   return state.difficulty === "easy"
-    ? "Tap the launch line, pull the striker back, and release. Follow the blue guide!"
-    : "Tap the launch line, pull back, and release. Trust your aim!";
+    ? `${playerName(state)}, tap your launch line, pull back, and release. Follow the blue guide!`
+    : `${playerName(state)}, tap your launch line, pull back, and release. Trust your aim!`;
 }
 
 function boardDescription(state: CarromState): string {
-  return `${statusMessage(state)} ${remainingCoins(state, "black")} black coins, ${remainingCoins(state, "white")} white coins, and ${remainingCoins(state, "red")} red coins remain. Score ${state.score.player} to ${state.score.ai}.`;
+  return `${statusMessage(state)} ${remainingCoins(state, "black")} black coins, ${remainingCoins(state, "white")} white coins, and ${remainingCoins(state, "red")} red coins remain. ${playerName(state, "player")} ${state.score.player}, ${playerName(state, "ai")} ${state.score.ai}.`;
 }
 
 function winnerTitle(state: CarromState): string {
   if (state.winner === "draw") return "A sparkling draw!";
+  if (state.mode === "twoPlayer") return `${playerName(state, state.winner!)} wins!`;
   return state.winner === "player" ? "Carrom champion!" : "So close — play again?";
 }
 
 export async function mount({ container, exit }: GameContext): Promise<GameInstance> {
   const { default: kaplay } = await import("kaplay");
   const sounds = new ArcadeSounds();
-  let state = createInitialState("easy");
+  let selectedMode: GameMode = "onePlayer";
+  let selectedDifficulty: Difficulty = "easy";
+  let state = createInitialState(selectedDifficulty, selectedMode);
+  let setupOpen = true;
   let destroyed = false;
   let activePointer: number | undefined;
   let aimPointer: Vector | null = null;
@@ -101,24 +112,68 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
         </div>
       </header>
 
-      <section class="carrom-game" aria-label="Carrom game against the computer">
-        <div class="carrom-mission">
-          <div class="carrom-mission-icon" aria-hidden="true">◎</div>
-          <div>
-            <p class="mission-title">Score the most points!</p>
-            <p class="mission-copy">Black is 5, white is 10, and red is 50 after you cover it on your next shot.</p>
+      <section class="carrom-game" data-carrom-game aria-label="Carrom game">
+        <div class="carrom-setup" data-carrom-setup>
+          <div class="carrom-setup-art" aria-hidden="true">◎</div>
+          <div class="carrom-setup-copy">
+            <p class="eyebrow carrom-eyebrow">Choose your match</p>
+            <h2>Who is playing?</h2>
+            <p>Share this board with a friend, or take on the computer.</p>
           </div>
-          <div class="carrom-mode" role="group" aria-label="Computer difficulty">
-            <button type="button" data-carrom-mode="easy" aria-pressed="true"><span aria-hidden="true">✨</span> Easy</button>
-            <button type="button" data-carrom-mode="hard" aria-pressed="false"><span aria-hidden="true">🔥</span> Hard</button>
+
+          <div class="carrom-setup-group">
+            <h3>Players</h3>
+            <div class="carrom-choice-grid" role="group" aria-label="Number of players">
+              <button type="button" data-carrom-players="onePlayer" aria-pressed="true">
+                <span class="carrom-choice-icon" aria-hidden="true">🤖</span>
+                <strong>1 Player</strong>
+                <small>Play against the computer</small>
+              </button>
+              <button type="button" data-carrom-players="twoPlayer" aria-pressed="false">
+                <span class="carrom-choice-icon" aria-hidden="true">🧑‍🤝‍🧑</span>
+                <strong>2 Players</strong>
+                <small>Take turns on one board</small>
+              </button>
+            </div>
           </div>
+
+          <div class="carrom-setup-group">
+            <h3>Difficulty</h3>
+            <div class="carrom-choice-grid" role="group" aria-label="Difficulty">
+              <button type="button" data-carrom-difficulty="easy" aria-pressed="true">
+                <span class="carrom-choice-icon" aria-hidden="true">✨</span>
+                <strong>Easy</strong>
+                <small data-carrom-easy-copy>Hints + friendly AI</small>
+              </button>
+              <button type="button" data-carrom-difficulty="hard" aria-pressed="false">
+                <span class="carrom-choice-icon" aria-hidden="true">🔥</span>
+                <strong>Hard</strong>
+                <small data-carrom-hard-copy>No hints + clever AI</small>
+              </button>
+            </div>
+          </div>
+
+          <button class="check-button carrom-start-button" type="button" data-carrom-action="start">Start match</button>
         </div>
 
-        <div class="carrom-workspace">
+        <div data-carrom-match hidden>
+          <div class="carrom-mission">
+            <div class="carrom-mission-icon" aria-hidden="true">◎</div>
+            <div>
+              <p class="mission-title">Score the most points!</p>
+              <p class="mission-copy">Black is 5, white is 10, and red is 50 after you cover it on your next shot.</p>
+            </div>
+            <div class="carrom-match-settings" aria-label="Match settings">
+              <span data-carrom-mode-label>1 Player</span>
+              <span data-carrom-difficulty-label>Easy · Hints</span>
+            </div>
+          </div>
+
+          <div class="carrom-workspace">
           <div class="carrom-scorebar" aria-label="Score and turn">
-            <div class="carrom-score carrom-score--player"><span class="carrom-score-coin" aria-hidden="true"></span><span>You</span><strong data-carrom-player-score>0</strong></div>
+            <div class="carrom-score carrom-score--player"><span class="carrom-score-coin" aria-hidden="true"></span><span data-carrom-player-label>You</span><strong data-carrom-player-score>0</strong></div>
             <div class="carrom-turn" data-carrom-turn>Your turn</div>
-            <div class="carrom-score carrom-score--ai"><span class="carrom-score-coin" aria-hidden="true"></span><span>Computer</span><strong data-carrom-ai-score>0</strong></div>
+            <div class="carrom-score carrom-score--ai"><span class="carrom-score-coin" aria-hidden="true"></span><span data-carrom-ai-label>Computer</span><strong data-carrom-ai-score>0</strong></div>
           </div>
           <div class="carrom-coin-legend" aria-label="Coin values">
             <span><i class="carrom-legend-coin carrom-legend-coin--black" aria-hidden="true"></i> Black <strong>${COIN_POINTS.black}</strong></span>
@@ -134,7 +189,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
               height="720"
               tabindex="0"
               role="application"
-              aria-label="Carrom board with black, white, and red coins. Tap the bottom launch line to place the striker, drag back, and release to shoot. Use left and right arrow keys to move, then Space to shoot straight."
+              aria-label="Carrom board with black, white, and red coins. Tap your launch line to place the striker, drag back, and release to shoot. Use left and right arrow keys to move, then Space to shoot straight."
             ></canvas>
           </div>
 
@@ -151,7 +206,8 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
             <div><strong>Hold + pull back</strong><span>Release to fire</span></div>
             <button type="button" data-carrom-move="right" aria-label="Move striker right"><span>Move</span> ▶</button>
           </div>
-          <button class="soft-button carrom-new-button" type="button" data-carrom-action="new">New match</button>
+          <button class="soft-button carrom-new-button" type="button" data-carrom-action="new">Change match</button>
+          </div>
         </div>
       </section>
 
@@ -159,8 +215,17 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     </main>`;
 
   const canvas = container.querySelector<HTMLCanvasElement>("[data-carrom-canvas]");
+  const gameElement = container.querySelector<HTMLElement>("[data-carrom-game]");
+  const setupElement = container.querySelector<HTMLElement>("[data-carrom-setup]");
+  const matchElement = container.querySelector<HTMLElement>("[data-carrom-match]");
   const playerScore = container.querySelector<HTMLElement>("[data-carrom-player-score]");
   const aiScore = container.querySelector<HTMLElement>("[data-carrom-ai-score]");
+  const playerLabel = container.querySelector<HTMLElement>("[data-carrom-player-label]");
+  const aiLabel = container.querySelector<HTMLElement>("[data-carrom-ai-label]");
+  const modeLabel = container.querySelector<HTMLElement>("[data-carrom-mode-label]");
+  const difficultyLabel = container.querySelector<HTMLElement>("[data-carrom-difficulty-label]");
+  const easyCopy = container.querySelector<HTMLElement>("[data-carrom-easy-copy]");
+  const hardCopy = container.querySelector<HTMLElement>("[data-carrom-hard-copy]");
   const turnElement = container.querySelector<HTMLElement>("[data-carrom-turn]");
   const powerElement = container.querySelector<HTMLElement>("[data-carrom-power]");
   const powerLabel = container.querySelector<HTMLElement>("[data-carrom-power-label]");
@@ -168,7 +233,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   const summaryElement = container.querySelector<HTMLElement>("[data-carrom-summary]");
   const resultElement = container.querySelector<HTMLElement>("[data-carrom-result]");
   const soundButton = container.querySelector<HTMLButtonElement>("[data-carrom-sound]");
-  if (!canvas || !playerScore || !aiScore || !turnElement || !powerElement || !powerLabel || !messageElement || !summaryElement || !resultElement || !soundButton) {
+  if (!canvas || !gameElement || !setupElement || !matchElement || !playerScore || !aiScore || !playerLabel || !aiLabel || !modeLabel || !difficultyLabel || !easyCopy || !hardCopy || !turnElement || !powerElement || !powerLabel || !messageElement || !summaryElement || !resultElement || !soundButton) {
     throw new Error("Carrom UI could not be created");
   }
 
@@ -269,7 +334,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   }
 
   function drawAim(): void {
-    if (!aimPointer || state.phase !== "aiming" || state.turn !== "player") return;
+    if (!aimPointer || state.phase !== "aiming") return;
     const pullX = aimPointer.x - state.striker.x;
     const pullY = aimPointer.y - state.striker.y;
     const pullLength = Math.hypot(pullX, pullY);
@@ -315,15 +380,19 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
 
   function showResult(): void {
     const playerWon = state.winner === "player";
+    const winnerIcon = state.winner === "draw" ? "✨" : playerWon || state.mode === "twoPlayer" ? "🏆" : "🎯";
+    const firstName = playerName(state, "player");
+    const secondName = playerName(state, "ai");
     resultElement!.hidden = false;
     resultElement!.innerHTML = `
       <div class="result-card carrom-result-card" role="dialog" aria-modal="true" aria-labelledby="carrom-result-title">
-        <div class="carrom-result-icon" aria-hidden="true">${playerWon ? "🏆" : state.winner === "draw" ? "✨" : "🎯"}</div>
+        <div class="carrom-result-icon" aria-hidden="true">${winnerIcon}</div>
         <p class="eyebrow carrom-eyebrow">Match complete</p>
         <h2 id="carrom-result-title">${winnerTitle(state)}</h2>
-        <p>Final score: You ${state.score.player} · Computer ${state.score.ai}</p>
+        <p>Final score: ${firstName} ${state.score.player} · ${secondName} ${state.score.ai}</p>
         <div class="result-actions">
           <button class="check-button carrom-result-button" type="button" data-carrom-result-action="again">Play again</button>
+          <button class="soft-button" type="button" data-carrom-result-action="setup">Change match</button>
           <button class="text-button" type="button" data-carrom-result-action="exit">All games</button>
         </div>
       </div>`;
@@ -331,7 +400,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   }
 
   function scheduleAi(): void {
-    if (state.phase !== "aiThinking" || aiTimer !== undefined || destroyed) return;
+    if (setupOpen || state.mode !== "onePlayer" || state.phase !== "aiThinking" || aiTimer !== undefined || destroyed) return;
     aiTimer = window.setTimeout(() => {
       aiTimer = undefined;
       if (destroyed || state.phase !== "aiThinking") return;
@@ -342,36 +411,36 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   }
 
   function renderState(previous?: CarromState): void {
-    if (previous && state.score.player > previous.score.player) {
+    if (previous && (state.score.player > previous.score.player || (state.mode === "twoPlayer" && state.score.ai > previous.score.ai))) {
       vibrate(PLAYER_SCORE_VIBRATION_MS);
       sounds.playCoinScore();
     }
     playerScore!.textContent = String(state.score.player);
     aiScore!.textContent = String(state.score.ai);
+    playerLabel!.textContent = playerName(state, "player");
+    aiLabel!.textContent = playerName(state, "ai");
+    modeLabel!.textContent = state.mode === "onePlayer" ? "1 Player" : "2 Players";
+    difficultyLabel!.textContent = state.difficulty === "easy" ? "Easy · Hints" : "Hard · No hints";
+    gameElement!.setAttribute("aria-label", state.mode === "onePlayer" ? "Carrom game against the computer" : "Two-player Carrom game");
     turnElement!.textContent = state.phase === "over"
       ? "Match over"
       : state.pendingRed === state.turn
-        ? state.turn === "player" ? "Cover red!" : "Computer cover"
-        : state.turn === "player" ? "Your turn" : "Computer turn";
+        ? `${playerName(state)}: cover red!`
+        : state.mode === "onePlayer" && state.turn === "player"
+          ? "Your turn"
+          : `${playerName(state)}'s turn`;
     turnElement!.classList.toggle("carrom-turn--ai", state.turn === "ai");
     messageElement!.textContent = statusMessage(state);
     summaryElement!.textContent = boardDescription(state);
-    container.querySelectorAll<HTMLButtonElement>("[data-carrom-mode]").forEach((button) => {
-      const selected = button.dataset.carromMode === state.difficulty;
-      button.setAttribute("aria-pressed", String(selected));
-      button.classList.toggle("is-selected", selected);
-    });
     container.querySelectorAll<HTMLButtonElement>("[data-carrom-move]").forEach((button) => {
-      button.disabled = state.phase !== "aiming" || state.turn !== "player";
+      button.disabled = setupOpen || state.phase !== "aiming";
     });
     if (state.pendingRed && previous?.pendingRed !== state.pendingRed) {
-      messageElement!.textContent = state.pendingRed === "player"
-        ? "Red is pocketed! Cover it with black or white on your next shot."
-        : "Computer pocketed red and must cover it on the next shot.";
+      messageElement!.textContent = `${playerName(state, state.pendingRed)} pocketed red and must cover it with black or white on the next shot.`;
     } else if (previous && (previous.score.player !== state.score.player || previous.score.ai !== state.score.ai)) {
-      const scorer = state.score.player !== previous.score.player ? "You" : "Computer";
-      const points = scorer === "You" ? state.score.player - previous.score.player : state.score.ai - previous.score.ai;
-      messageElement!.textContent = `${scorer} scored ${points} points! Total: you ${state.score.player}, computer ${state.score.ai}.`;
+      const scorer = state.score.player !== previous.score.player ? "player" : "ai";
+      const points = state.score[scorer] - previous.score[scorer];
+      messageElement!.textContent = `${playerName(state, scorer)} scored ${points} points! ${playerName(state, "player")} ${state.score.player}, ${playerName(state, "ai")} ${state.score.ai}.`;
     } else if (previous?.pendingRed && !state.pendingRed) {
       messageElement!.textContent = "Red was not covered, so it returned to the center.";
     }
@@ -379,16 +448,53 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     scheduleAi();
   }
 
-  function restart(difficulty = state.difficulty): void {
+  function renderSetupSelections(): void {
+    container.querySelectorAll<HTMLButtonElement>("[data-carrom-players]").forEach((button) => {
+      const selected = button.dataset.carromPlayers === selectedMode;
+      button.setAttribute("aria-pressed", String(selected));
+      button.classList.toggle("is-selected", selected);
+    });
+    container.querySelectorAll<HTMLButtonElement>("[data-carrom-difficulty]").forEach((button) => {
+      const selected = button.dataset.carromDifficulty === selectedDifficulty;
+      button.setAttribute("aria-pressed", String(selected));
+      button.classList.toggle("is-selected", selected);
+    });
+    easyCopy!.textContent = selectedMode === "onePlayer" ? "Hints + friendly AI" : "Hints for both players";
+    hardCopy!.textContent = selectedMode === "onePlayer" ? "No hints + clever AI" : "No hints for either player";
+  }
+
+  function resetMatch(): void {
     if (aiTimer !== undefined) window.clearTimeout(aiTimer);
     aiTimer = undefined;
     activePointer = undefined;
     aimPointer = null;
-    state = createInitialState(difficulty);
+    state = createInitialState(selectedDifficulty, selectedMode);
     hideResult();
     updatePower();
     renderState();
+  }
+
+  function startMatch(): void {
+    setupOpen = false;
+    setupElement!.hidden = true;
+    matchElement!.hidden = false;
+    resetMatch();
     canvas!.focus();
+  }
+
+  function openSetup(): void {
+    if (aiTimer !== undefined) window.clearTimeout(aiTimer);
+    aiTimer = undefined;
+    setupOpen = true;
+    activePointer = undefined;
+    aimPointer = null;
+    state = createInitialState(selectedDifficulty, selectedMode);
+    hideResult();
+    matchElement!.hidden = true;
+    setupElement!.hidden = false;
+    updatePower();
+    renderSetupSelections();
+    container.querySelector<HTMLButtonElement>(`[data-carrom-players="${selectedMode}"]`)?.focus();
   }
 
   function eventBoardPosition(event: PointerEvent, clampToBoard = true): Vector {
@@ -401,10 +507,12 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   }
 
   function onPointerDown(event: PointerEvent): void {
-    if (state.phase !== "aiming" || state.turn !== "player") return;
+    if (setupOpen || state.phase !== "aiming") return;
     const point = eventBoardPosition(event);
     const nearStriker = Math.hypot(point.x - state.striker.x, point.y - state.striker.y) <= 68;
-    const onLaunchLine = point.y >= PLAYER_BASELINE_Y - 58;
+    const onLaunchLine = state.turn === "player"
+      ? point.y >= PLAYER_BASELINE_Y - 58
+      : point.y <= AI_BASELINE_Y + 58;
     if (!nearStriker && !onLaunchLine) return;
     event.preventDefault();
     void sounds.unlock();
@@ -444,7 +552,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   }
 
   function onKeyDown(event: KeyboardEvent): void {
-    if (event.metaKey || event.ctrlKey || event.altKey || state.phase !== "aiming" || state.turn !== "player") return;
+    if (event.metaKey || event.ctrlKey || event.altKey || setupOpen || state.phase !== "aiming") return;
     if (event.target instanceof HTMLButtonElement) return;
     if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
       event.preventDefault();
@@ -456,13 +564,14 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       event.preventDefault();
       void sounds.unlock();
       const previous = state;
-      state = launchPlayerShot(state, { x: state.striker.x, y: state.striker.y + 105 });
+      const pullDirection = state.turn === "player" ? 1 : -1;
+      state = launchPlayerShot(state, { x: state.striker.x, y: state.striker.y + pullDirection * 105 });
       renderState(previous);
     }
   }
 
   function onClick(event: MouseEvent): void {
-    const target = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-carrom-action], [data-carrom-result-action], [data-carrom-mode], [data-carrom-move], [data-carrom-sound]") : null;
+    const target = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-carrom-action], [data-carrom-result-action], [data-carrom-players], [data-carrom-difficulty], [data-carrom-move], [data-carrom-sound]") : null;
     if (!target) return;
     if (target.hasAttribute("data-carrom-sound")) {
       sounds.setEnabled(!sounds.enabled);
@@ -472,8 +581,16 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       soundButton!.querySelector("span")!.textContent = sounds.enabled ? "🔊" : "🔇";
       if (sounds.enabled) void sounds.unlock();
     } else if (target.dataset.carromAction === "exit" || target.dataset.carromResultAction === "exit") exit();
-    else if (target.dataset.carromAction === "new" || target.dataset.carromResultAction === "again") restart();
-    else if (target.dataset.carromMode) restart(target.dataset.carromMode as Difficulty);
+    else if (target.dataset.carromAction === "new" || target.dataset.carromResultAction === "setup") openSetup();
+    else if (target.dataset.carromAction === "start") startMatch();
+    else if (target.dataset.carromResultAction === "again") resetMatch();
+    else if (target.dataset.carromPlayers) {
+      selectedMode = target.dataset.carromPlayers as GameMode;
+      renderSetupSelections();
+    } else if (target.dataset.carromDifficulty) {
+      selectedDifficulty = target.dataset.carromDifficulty as Difficulty;
+      renderSetupSelections();
+    }
     else if (target.dataset.carromMove === "left") moveStriker(-1);
     else if (target.dataset.carromMove === "right") moveStriker(1);
   }
@@ -500,6 +617,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   canvas.addEventListener("pointercancel", onPointerEnd);
   canvas.addEventListener("keydown", onKeyDown);
   document.addEventListener("visibilitychange", onVisibilityChange);
+  renderSetupSelections();
   renderState();
 
   return {

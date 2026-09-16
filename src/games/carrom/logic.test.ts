@@ -39,6 +39,7 @@ describe("Carrom setup and touch controls", () => {
 
   test("sets up nine black, nine white, one red, and the player's striker", () => {
     const state = createInitialState();
+    expect(state.mode).toBe("onePlayer");
     expect(state.coins).toHaveLength(CARROM_COIN_COUNT * 2 + 1);
     expect(remainingCoins(state, "black")).toBe(CARROM_COIN_COUNT);
     expect(remainingCoins(state, "white")).toBe(CARROM_COIN_COUNT);
@@ -46,6 +47,12 @@ describe("Carrom setup and touch controls", () => {
     expect(state.turn).toBe("player");
     expect(state.phase).toBe("aiming");
     expect(state.striker.y).toBe(PLAYER_BASELINE_Y);
+  });
+
+  test("keeps the selected player count and difficulty in a new match", () => {
+    const state = createInitialState("hard", "twoPlayer");
+    expect(state.mode).toBe("twoPlayer");
+    expect(state.difficulty).toBe("hard");
   });
 
   test("maps display coordinates and places the striker inside the launch line", () => {
@@ -157,6 +164,38 @@ describe("Carrom physics and turns", () => {
     expect(state.phase).toBe("aiThinking");
     expect(state.turn).toBe("ai");
     expect(state.striker.y).toBe(AI_BASELINE_Y);
+  });
+
+  test("a dry shot passes to an aiming Player 2 in two-player mode", () => {
+    const initial = createInitialState("easy", "twoPlayer");
+    let state: CarromState = {
+      ...initial,
+      coins: [
+        { ...initial.coins.find(({ kind }) => kind === "black")!, x: 145, y: 360 },
+        { ...initial.coins.find(({ kind }) => kind === "white")!, x: 575, y: 360 },
+      ],
+    };
+    state = launchPlayerShot(state, { x: state.striker.x, y: state.striker.y + 20 });
+    for (let step = 0; step < 200 && state.phase === "moving"; step += 1) state = updateCarrom(state, 0.05);
+    expect(state.phase).toBe("aiming");
+    expect(state.turn).toBe("ai");
+    expect(state.striker.y).toBe(AI_BASELINE_Y);
+  });
+
+  test("Player 2 can place and fire the top striker downward", () => {
+    const initial = createInitialState("easy", "twoPlayer");
+    const playerTwoTurn: CarromState = {
+      ...initial,
+      turn: "ai",
+      phase: "aiming",
+      striker: { ...initial.striker, y: AI_BASELINE_Y },
+    };
+    const positioned = positionPlayerStriker(playerTwoTurn, 240);
+    const launched = launchPlayerShot(positioned, { x: positioned.striker.x, y: positioned.striker.y - 100 });
+    expect(positioned.striker.x).toBe(240);
+    expect(positioned.striker.y).toBe(AI_BASELINE_Y);
+    expect(launched.shot?.shooter).toBe("ai");
+    expect(launched.striker.vy).toBeGreaterThan(0);
   });
 
   test("pocketing a black or white coin awards its value and earns another turn", () => {
@@ -271,5 +310,14 @@ describe("Carrom physics and turns", () => {
     expect(launched.phase).toBe("moving");
     expect(launched.striker.y).toBe(AI_BASELINE_Y);
     expect(launched.striker.vy).toBeGreaterThan(0);
+  });
+
+  test("the AI cannot take Player 2's turn", () => {
+    const state: CarromState = {
+      ...createInitialState("hard", "twoPlayer"),
+      phase: "aiThinking",
+      turn: "ai",
+    };
+    expect(launchAiShot(state, () => 0.5)).toBe(state);
   });
 });
