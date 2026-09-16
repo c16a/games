@@ -216,6 +216,8 @@ const games = [
   },
 ] as const satisfies readonly GameDefinition[];
 
+const gamesByName = [...games].sort((first, second) => first.name.localeCompare(second.name));
+
 let activeGame: GameInstance | undefined;
 let activeLoad: AbortController | undefined;
 
@@ -263,7 +265,7 @@ function renderPicker(): void {
       </section>
 
       <section class="game-shelf" aria-label="Games">
-        ${games.map((game) => `
+        ${gamesByName.map((game) => `
           <button class="game-card" type="button" data-game="${game.id}" style="--card-accent:${game.accent}">
             <span class="game-art" aria-hidden="true">
               <span class="art-bubble art-bubble--one"></span>
