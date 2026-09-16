@@ -85,8 +85,7 @@ function winnerTitle(state: CarromState): string {
   return state.winner === "player" ? "Carrom champion!" : "So close — play again?";
 }
 
-export async function mount({ container, exit }: GameContext): Promise<GameInstance> {
-  const { default: kaplay } = await import("kaplay");
+export async function mount({ container, exit, kaplayReady, signal }: GameContext): Promise<GameInstance> {
   const sounds = new ArcadeSounds();
   let selectedMode: GameMode = "onePlayer";
   let selectedDifficulty: Difficulty = "easy";
@@ -153,7 +152,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
             </div>
           </div>
 
-          <button class="check-button carrom-start-button" type="button" data-carrom-action="start">Start match</button>
+          <button class="check-button carrom-start-button" type="button" data-carrom-action="start" disabled aria-live="polite">Preparing board…</button>
         </div>
 
         <div data-carrom-match hidden>
@@ -233,10 +232,31 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   const summaryElement = container.querySelector<HTMLElement>("[data-carrom-summary]");
   const resultElement = container.querySelector<HTMLElement>("[data-carrom-result]");
   const soundButton = container.querySelector<HTMLButtonElement>("[data-carrom-sound]");
-  if (!canvas || !gameElement || !setupElement || !matchElement || !playerScore || !aiScore || !playerLabel || !aiLabel || !modeLabel || !difficultyLabel || !easyCopy || !hardCopy || !turnElement || !powerElement || !powerLabel || !messageElement || !summaryElement || !resultElement || !soundButton) {
+  const startButton = container.querySelector<HTMLButtonElement>('[data-carrom-action="start"]');
+  if (!canvas || !gameElement || !setupElement || !matchElement || !playerScore || !aiScore || !playerLabel || !aiLabel || !modeLabel || !difficultyLabel || !easyCopy || !hardCopy || !turnElement || !powerElement || !powerLabel || !messageElement || !summaryElement || !resultElement || !soundButton || !startButton) {
     throw new Error("Carrom UI could not be created");
   }
 
+  const abandonSetup = (): void => {
+    destroyed = true;
+    container.removeEventListener("click", onClick);
+    sounds.destroy();
+  };
+  signal?.addEventListener("abort", abandonSetup, { once: true });
+  container.addEventListener("click", onClick);
+  renderSetupSelections();
+
+  let kaplayModule: typeof import("kaplay");
+  try {
+    kaplayModule = await (kaplayReady ?? import("kaplay"));
+  } catch (error) {
+    signal?.removeEventListener("abort", abandonSetup);
+    abandonSetup();
+    throw error;
+  }
+  if (destroyed || signal?.aborted) return { destroy() {} };
+  signal?.removeEventListener("abort", abandonSetup);
+  const { default: kaplay } = kaplayModule;
   const k = kaplay({
     global: false,
     canvas,
@@ -247,6 +267,8 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     focus: false,
     touchToMouse: false,
   });
+  startButton.disabled = false;
+  startButton.textContent = "Start match";
 
   function rgb(color: readonly [number, number, number]) {
     return k.rgb(color[0], color[1], color[2]);
@@ -610,14 +632,12 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     if (state.phase !== previous.phase || state.score.player !== previous.score.player || state.score.ai !== previous.score.ai) renderState(previous);
   });
 
-  container.addEventListener("click", onClick);
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerEnd);
   canvas.addEventListener("pointercancel", onPointerEnd);
   canvas.addEventListener("keydown", onKeyDown);
   document.addEventListener("visibilitychange", onVisibilityChange);
-  renderSetupSelections();
   renderState();
 
   return {

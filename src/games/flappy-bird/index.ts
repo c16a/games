@@ -71,8 +71,9 @@ function flightSummary(state: FlappyState): string {
   return `${statusMessage(state)} Score ${state.score}. Bird height ${Math.round(FLOOR_Y - state.birdY)}. ${pipeMessage}`;
 }
 
-export async function mount({ container, exit }: GameContext): Promise<GameInstance> {
-  const { default: kaplay } = await import("kaplay");
+export async function mount({ container, exit, kaplayReady, signal }: GameContext): Promise<GameInstance> {
+  const { default: kaplay } = await (kaplayReady ?? import("kaplay"));
+  if (signal?.aborted) return { destroy() {} };
   let state = createInitialState();
   let bestScore = loadBestScore();
   let destroyed = false;

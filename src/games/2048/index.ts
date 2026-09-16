@@ -91,8 +91,9 @@ function usesDarkText(value: number): boolean {
   return value <= 4 || value === 2048;
 }
 
-export async function mount({ container, exit }: GameContext): Promise<GameInstance> {
-  const { default: kaplay } = await import("kaplay");
+export async function mount({ container, exit, kaplayReady, signal }: GameContext): Promise<GameInstance> {
+  const { default: kaplay } = await (kaplayReady ?? import("kaplay"));
+  if (signal?.aborted) return { destroy() {} };
   let state: GameState = createInitialState();
   let bestScore = loadBestScore();
   let winCelebrated = false;

@@ -63,8 +63,9 @@ function boardDescription(state: SnakeState): string {
   return `Snake head at column ${head.x + 1}, row ${head.y + 1}. ${snack} Length ${state.snake.length}.`;
 }
 
-export async function mount({ container, exit }: GameContext): Promise<GameInstance> {
-  const { default: kaplay } = await import("kaplay");
+export async function mount({ container, exit, kaplayReady, signal }: GameContext): Promise<GameInstance> {
+  const { default: kaplay } = await (kaplayReady ?? import("kaplay"));
+  if (signal?.aborted) return { destroy() {} };
   let speed: Speed = "normal";
   let state = createInitialState();
   let bestScore = loadBestScore(speed);

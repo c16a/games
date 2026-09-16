@@ -55,8 +55,9 @@ function gameSummary(state: ShooterState, timeScale = 1): string {
   return `Plane level ${state.player.level}. Health ${health} percent. Score ${state.score}. ${state.player.killsTowardUpgrade} of ${requirement} kills toward the next upgrade. Fire rate ${boltsPerSecond(state.player.level)} per second. Fire power ${boltDamage(state.player.level)}. Game speed ${timeScale < 1 ? "slow motion" : "normal"}. ${state.enemies.length} enemies and ${state.bolts.length} bolts active.`;
 }
 
-export async function mount({ container, exit }: GameContext): Promise<GameInstance> {
-  const { default: kaplay } = await import("kaplay");
+export async function mount({ container, exit, kaplayReady, signal }: GameContext): Promise<GameInstance> {
+  const { default: kaplay } = await (kaplayReady ?? import("kaplay"));
+  if (signal?.aborted) return { destroy() {} };
   let state = createInitialState();
   let bestScore = loadBestScore();
   let destroyed = false;

@@ -6,7 +6,9 @@
   "private": true,
   "scripts": {
     "dev": "bun --hot ./index.ts",
-    "build": "bunx tsc --noEmit && bun build ./index.html --outdir=dist --minify --target=browser --splitting && bun run ./scripts/copy-chess-assets.ts",
+    "clean:dist": "bun run ./scripts/clean-dist.ts",
+    "build": "bun run clean:dist && bunx tsc --noEmit && bun build ./index.html --outdir=dist --minify --target=browser --splitting --metafile=.build/bundle-meta.json && bun run ./scripts/copy-chess-assets.ts",
+    "perf:audit": "bun run ./scripts/performance-audit.ts",
     "start": "bun ./index.ts",
     "test": "bun test"
   },

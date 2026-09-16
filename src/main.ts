@@ -1,12 +1,22 @@
-import type { GameCard, GameInstance, GameModule } from "./platform/game";
+import type { GameInstance } from "./platform/game";
+import {
+  GameLoadingCoordinator,
+  LatestRouteGuard,
+  type ConnectionHints,
+  type GameDefinition,
+  type PrefetchIntent,
+  type RouteRequest,
+} from "./platform/game-loader";
 
 const appElement = document.querySelector<HTMLElement>("#app");
 if (!appElement) throw new Error("App root is missing");
 const app: HTMLElement = appElement;
 
-const games: GameCard[] = [
+const games = [
   {
     id: "mastermind",
+    engine: "dom",
+    load: () => import("./games/mastermind"),
     name: "Mastermind",
     description: "Crack the secret rainbow code!",
     badge: "Puzzle",
@@ -15,6 +25,8 @@ const games: GameCard[] = [
   },
   {
     id: "glow-grid",
+    engine: "dom",
+    load: () => import("./games/glow-grid"),
     name: "Glow Grid",
     description: "Switch off every light using clever moves!",
     badge: "Logic",
@@ -23,6 +35,8 @@ const games: GameCard[] = [
   },
   {
     id: "tower-tangle",
+    engine: "dom",
+    load: () => import("./games/tower-tangle"),
     name: "Tower Tangle",
     description: "Move the whole tower with clever planning!",
     badge: "Strategy",
@@ -31,6 +45,8 @@ const games: GameCard[] = [
   },
   {
     id: "color-dash",
+    engine: "dom",
+    load: () => import("./games/color-dash"),
     name: "Color Dash",
     description: "Outsmart the words and race the clock!",
     badge: "Reflex",
@@ -39,6 +55,8 @@ const games: GameCard[] = [
   },
   {
     id: "2048",
+    engine: "kaplay",
+    load: () => import("./games/2048"),
     name: "2048",
     description: "Slide, match, and grow a mighty number!",
     badge: "Numbers",
@@ -47,6 +65,8 @@ const games: GameCard[] = [
   },
   {
     id: "snake",
+    engine: "kaplay",
+    load: () => import("./games/snake"),
     name: "Snake",
     description: "Nibble snacks and plan around your growing tail!",
     badge: "Reflexes",
@@ -55,6 +75,8 @@ const games: GameCard[] = [
   },
   {
     id: "breakout",
+    engine: "kaplay",
+    load: () => import("./games/breakout"),
     name: "Breakout",
     description: "Bounce, aim, and smash the rainbow brick wall!",
     badge: "Reflexes",
@@ -63,6 +85,8 @@ const games: GameCard[] = [
   },
   {
     id: "tetris",
+    engine: "kaplay",
+    load: () => import("./games/tetris"),
     name: "Tetris",
     description: "Fit falling shapes and clear colorful lines!",
     badge: "Spatial",
@@ -71,6 +95,8 @@ const games: GameCard[] = [
   },
   {
     id: "lunar-lander",
+    engine: "kaplay",
+    load: () => import("./games/lunar-lander"),
     name: "Lunar Lander",
     description: "Balance thrust and gravity for a perfect touchdown!",
     badge: "Physics",
@@ -79,6 +105,8 @@ const games: GameCard[] = [
   },
   {
     id: "space-shooter",
+    engine: "kaplay",
+    load: () => import("./games/space-shooter"),
     name: "Star Squadron",
     description: "Dodge, blast, and upgrade through endless space!",
     badge: "Arcade",
@@ -87,6 +115,8 @@ const games: GameCard[] = [
   },
   {
     id: "endless-voyage",
+    engine: "dom",
+    load: () => import("./games/endless-voyage"),
     name: "Endless Voyage",
     description: "Choose each day and fill a journal with discoveries!",
     badge: "Story",
@@ -95,6 +125,8 @@ const games: GameCard[] = [
   },
   {
     id: "chess",
+    engine: "kaplay",
+    load: () => import("./games/chess"),
     name: "Chess",
     description: "Plan ahead and challenge a local computer opponent!",
     badge: "Strategy",
@@ -103,6 +135,8 @@ const games: GameCard[] = [
   },
   {
     id: "carrom",
+    engine: "kaplay",
+    load: () => import("./games/carrom"),
     name: "Carrom",
     description: "Pull, aim, and pocket coins against the computer!",
     badge: "Aim + Skill",
@@ -111,61 +145,27 @@ const games: GameCard[] = [
   },
   {
     id: "flappy-bird",
+    engine: "kaplay",
+    load: () => import("./games/flappy-bird"),
     name: "Flappy Bird",
     description: "Tap to flutter through a sky full of tricky gaps!",
     badge: "One Tap",
     icon: "🐤",
     accent: "#22b8cf",
   },
-];
+] as const satisfies readonly GameDefinition[];
 
 let activeGame: GameInstance | undefined;
-let kaplayPreloadScheduled = false;
+let activeLoad: AbortController | undefined;
 
-type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris" | "lunar-lander" | "space-shooter" | "endless-voyage" | "chess" | "carrom" | "flappy-bird";
+type GameId = (typeof games)[number]["id"];
 type Route = "home" | GameId;
 
-const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
-  mastermind: () => import("./games/mastermind"),
-  "glow-grid": () => import("./games/glow-grid"),
-  "tower-tangle": () => import("./games/tower-tangle"),
-  "color-dash": () => import("./games/color-dash"),
-  "2048": () => import("./games/2048"),
-  snake: () => import("./games/snake"),
-  breakout: () => import("./games/breakout"),
-  tetris: () => import("./games/tetris"),
-  "lunar-lander": () => import("./games/lunar-lander"),
-  "space-shooter": () => import("./games/space-shooter"),
-  "endless-voyage": () => import("./games/endless-voyage"),
-  chess: () => import("./games/chess"),
-  carrom: () => import("./games/carrom"),
-  "flappy-bird": () => import("./games/flappy-bird"),
-};
+const gameLoading = new GameLoadingCoordinator<GameId>(games, () => import("kaplay"));
+const routeGuard = new LatestRouteGuard();
 
 function isGameId(value: string): value is GameId {
-  return value in gameLoaders;
-}
-
-function preloadKaplayInBackground(): void {
-  if (kaplayPreloadScheduled) return;
-  kaplayPreloadScheduled = true;
-
-  const preload = (): void => {
-    void import("kaplay").catch(() => {
-      // Allow another homepage visit to retry after a transient load failure.
-      kaplayPreloadScheduled = false;
-    });
-  };
-
-  const requestIdle = (window as unknown as {
-    requestIdleCallback?: Window["requestIdleCallback"];
-  }).requestIdleCallback;
-
-  if (requestIdle) {
-    requestIdle.call(window, preload, { timeout: 2_000 });
-  } else {
-    globalThis.setTimeout(preload, 0);
-  }
+  return games.some((game) => game.id === value);
 }
 
 function navigate(route: Route): void {
@@ -225,31 +225,55 @@ function renderPicker(): void {
     </main>`;
 
   app.querySelectorAll<HTMLElement>("[data-game]").forEach((card) => {
+    const gameId = card.dataset.game;
+    if (!gameId || !isGameId(gameId)) return;
+
+    const connection = (navigator as Navigator & { connection?: ConnectionHints }).connection;
+    const prefetch = (intent: PrefetchIntent): void => {
+      gameLoading.prefetch(gameId, intent, connection);
+    };
+
+    card.addEventListener("pointerenter", () => prefetch("hover"));
+    card.addEventListener("focus", () => prefetch("focus"));
+    card.addEventListener("pointerdown", () => prefetch("pointerdown"));
     card.addEventListener("click", () => {
-      const gameId = card.dataset.game;
-      if (gameId && isGameId(gameId)) navigate(gameId);
+      navigate(gameId);
     });
   });
-
-  preloadKaplayInBackground();
 }
 
-async function renderGame(gameId: GameId): Promise<void> {
+async function renderGame(gameId: GameId, request: RouteRequest): Promise<void> {
   activeGame?.destroy();
+  activeGame = undefined;
+  activeLoad = new AbortController();
+  const load = activeLoad;
   app.innerHTML = '<div class="loading-game" role="status"><span>★</span><p>Getting your game ready…</p></div>';
   const game = games.find(({ id }) => id === gameId);
   document.title = `${game?.name ?? "Game"} · Happy Arcade`;
-  const module = await gameLoaders[gameId]();
-  activeGame = await module.mount({
+  const prepared = gameLoading.prepare(gameId);
+  const module = await prepared.moduleReady;
+  if (!request.isCurrent() || load.signal.aborted) return;
+
+  const instance = await module.mount({
     container: app,
     exit: () => navigate("home"),
+    kaplayReady: prepared.kaplayReady,
+    signal: load.signal,
   });
+  if (!request.isCurrent() || load.signal.aborted) {
+    instance.destroy();
+    return;
+  }
+  activeGame = instance;
 }
 
 async function renderRoute(): Promise<void> {
+  const request = routeGuard.begin();
+  activeLoad?.abort();
+  activeLoad = undefined;
   window.scrollTo(0, 0);
   const route = window.location.hash.slice(1);
-  if (isGameId(route)) await renderGame(route);
+  if (isGameId(route)) await renderGame(route, request);
   else renderPicker();
 }
 

@@ -1,7 +1,11 @@
 export interface GameContext {
   container: HTMLElement;
   exit: () => void;
+  kaplayReady?: Promise<KaplayModule>;
+  signal?: AbortSignal;
 }
+
+export type KaplayModule = typeof import("kaplay");
 
 export interface GameInstance {
   destroy: () => void;

@@ -77,7 +77,7 @@ function shiftSquare(square: Square, direction: "left" | "right" | "up" | "down"
   return `${String.fromCharCode(97 + file)}${rank}` as Square;
 }
 
-export async function mount({ container, exit }: GameContext): Promise<GameInstance> {
+export async function mount({ container, exit, kaplayReady, signal }: GameContext): Promise<GameInstance> {
   const saved = loadGame();
   let destroyed = false;
   let playState: PlayState = "setup";
@@ -183,8 +183,8 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   const engineErrorCopy = container.querySelector<HTMLElement>("[data-chess-engine-error-copy]")!;
   const undoButton = container.querySelector<HTMLButtonElement>('[data-chess-action="undo"]')!;
 
-  const { default: kaplay } = await import("kaplay");
-  if (destroyed) return { destroy: () => {} };
+  const { default: kaplay } = await (kaplayReady ?? import("kaplay"));
+  if (destroyed || signal?.aborted) return { destroy: () => {} };
   const k = kaplay({
     global: false,
     canvas,
@@ -198,6 +198,10 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   });
   const renderer = new ChessRenderer(k, "w", reducedMotion);
   await renderer.loadAssets();
+  if (signal?.aborted) {
+    k.quit();
+    return { destroy: () => {} };
+  }
   k.onDraw(() => renderer.draw());
   k.onUpdate(() => renderer.update());
 
