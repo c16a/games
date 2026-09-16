@@ -8,6 +8,19 @@
     <title>Happy Arcade</title>
     <script>
       (() => {
+        // Safari hides extension script URLs and reports their failures as opaque page errors.
+        // Ignore only those external failures before Bun's development overlay is installed.
+        window.addEventListener("error", (event) => {
+          const fromMaskedSafariScript = event.filename.startsWith("webkit-masked-url:");
+          const opaqueExternalScriptError = event.message === "Script error."
+            && !event.filename
+            && event.error == null;
+          if (!fromMaskedSafariScript && !opaqueExternalScriptError) return;
+
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }, true);
+
         const storageKey = "happy-arcade-theme";
         let savedTheme;
         try {

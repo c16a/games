@@ -2016,6 +2016,46 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   border-color: var(--ink);
 }
 
+:root[data-theme="dark"] .chess-choice-group input:checked + span {
+  color: #ffffff;
+  background: #2f9e44;
+  border-color: #8ce99a;
+  box-shadow: 3px 4px 0 rgba(0, 0, 0, .62);
+}
+
+:root[data-theme="dark"] .chess-setup {
+  color: var(--ink);
+  background: linear-gradient(145deg, #17271e, #272718);
+}
+:root[data-theme="dark"] :is(.chess-setup-copy p:last-child, .chess-choice-group legend, .chess-local-note, .chess-license-links) {
+  color: var(--muted-ink);
+}
+:root[data-theme="dark"] .chess-draw-note {
+  color: var(--muted-ink);
+  background: rgba(255, 255, 255, .07);
+}
+:root[data-theme="dark"] .chess-license-links a { color: #8ce99a; }
+
+:root[data-theme="dark"] .carrom-setup {
+  color: var(--ink);
+  background: linear-gradient(145deg, #342618, #3d2b1b 58%, #49301a);
+}
+:root[data-theme="dark"] :is(.carrom-setup-copy p:last-child, .carrom-choice-grid button small) {
+  color: var(--muted-ink);
+}
+:root[data-theme="dark"] .carrom-choice-grid button {
+  color: var(--ink);
+  background: var(--surface-soft);
+  border-color: #8f7048;
+}
+:root[data-theme="dark"] .carrom-choice-grid button.is-selected {
+  color: #ffffff;
+  background: #b86420;
+  border-color: #ffd37a;
+  box-shadow: 4px 5px 0 rgba(0, 0, 0, .62);
+}
+:root[data-theme="dark"] .carrom-choice-grid button.is-selected small { color: #fff1d8; }
+
 :root[data-theme="dark"] :is(
   .picker-intro p,
   .game-card-content > span:not(.game-badge):not(.play-label),
