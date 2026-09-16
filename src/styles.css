@@ -1454,6 +1454,9 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 }
 .carrom-eyebrow { color: #9a4d0a; }
 .carrom-game { width: min(820px, 100%); margin: 0 auto; }
+.carrom-header-actions { display: flex; gap: 10px; }
+.carrom-sound-button { font-size: 1.35rem; }
+.carrom-sound-button[aria-pressed="false"] { color: #9a3412; background: #fff1ed; }
 .carrom-mission {
   display: grid;
   grid-template-columns: auto 1fr auto;

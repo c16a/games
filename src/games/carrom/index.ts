@@ -1,4 +1,5 @@
 import type { GameContext, GameInstance } from "../../platform/game";
+import { ArcadeSounds } from "../../platform/audio";
 import { vibrate } from "../../platform/haptics";
 import {
   BOARD_SIZE,
@@ -78,6 +79,7 @@ function winnerTitle(state: CarromState): string {
 
 export async function mount({ container, exit }: GameContext): Promise<GameInstance> {
   const { default: kaplay } = await import("kaplay");
+  const sounds = new ArcadeSounds();
   let state = createInitialState("easy");
   let destroyed = false;
   let activePointer: number | undefined;
@@ -93,7 +95,10 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
           <span class="eyebrow carrom-eyebrow">Aim • pull • pocket</span>
           <h1>Carrom</h1>
         </div>
-        <button class="icon-button" type="button" data-carrom-action="new" aria-label="Start a new Carrom game">↻</button>
+        <div class="carrom-header-actions">
+          <button class="icon-button carrom-sound-button" type="button" data-carrom-sound aria-label="${sounds.enabled ? "Turn sounds off" : "Turn sounds on"}" aria-pressed="${sounds.enabled}" title="${sounds.enabled ? "Sounds on" : "Sounds off"}"><span aria-hidden="true">${sounds.enabled ? "🔊" : "🔇"}</span></button>
+          <button class="icon-button" type="button" data-carrom-action="new" aria-label="Start a new Carrom game">↻</button>
+        </div>
       </header>
 
       <section class="carrom-game" aria-label="Carrom game against the computer">
@@ -162,7 +167,8 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   const messageElement = container.querySelector<HTMLElement>("[data-carrom-message]");
   const summaryElement = container.querySelector<HTMLElement>("[data-carrom-summary]");
   const resultElement = container.querySelector<HTMLElement>("[data-carrom-result]");
-  if (!canvas || !playerScore || !aiScore || !turnElement || !powerElement || !powerLabel || !messageElement || !summaryElement || !resultElement) {
+  const soundButton = container.querySelector<HTMLButtonElement>("[data-carrom-sound]");
+  if (!canvas || !playerScore || !aiScore || !turnElement || !powerElement || !powerLabel || !messageElement || !summaryElement || !resultElement || !soundButton) {
     throw new Error("Carrom UI could not be created");
   }
 
@@ -336,7 +342,10 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   }
 
   function renderState(previous?: CarromState): void {
-    if (previous && state.score.player > previous.score.player) vibrate(PLAYER_SCORE_VIBRATION_MS);
+    if (previous && state.score.player > previous.score.player) {
+      vibrate(PLAYER_SCORE_VIBRATION_MS);
+      sounds.playCoinScore();
+    }
     playerScore!.textContent = String(state.score.player);
     aiScore!.textContent = String(state.score.ai);
     turnElement!.textContent = state.phase === "over"
@@ -398,6 +407,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     const onLaunchLine = point.y >= PLAYER_BASELINE_Y - 58;
     if (!nearStriker && !onLaunchLine) return;
     event.preventDefault();
+    void sounds.unlock();
     if (onLaunchLine) state = positionPlayerStriker(state, point.x);
     activePointer = event.pointerId;
     aimPointer = { x: state.striker.x, y: state.striker.y };
@@ -444,6 +454,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       moveStriker(1);
     } else if (event.key === " " || event.key === "Enter") {
       event.preventDefault();
+      void sounds.unlock();
       const previous = state;
       state = launchPlayerShot(state, { x: state.striker.x, y: state.striker.y + 105 });
       renderState(previous);
@@ -451,9 +462,16 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   }
 
   function onClick(event: MouseEvent): void {
-    const target = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-carrom-action], [data-carrom-result-action], [data-carrom-mode], [data-carrom-move]") : null;
+    const target = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-carrom-action], [data-carrom-result-action], [data-carrom-mode], [data-carrom-move], [data-carrom-sound]") : null;
     if (!target) return;
-    if (target.dataset.carromAction === "exit" || target.dataset.carromResultAction === "exit") exit();
+    if (target.hasAttribute("data-carrom-sound")) {
+      sounds.setEnabled(!sounds.enabled);
+      soundButton!.setAttribute("aria-pressed", String(sounds.enabled));
+      soundButton!.setAttribute("aria-label", sounds.enabled ? "Turn sounds off" : "Turn sounds on");
+      soundButton!.title = sounds.enabled ? "Sounds on" : "Sounds off";
+      soundButton!.querySelector("span")!.textContent = sounds.enabled ? "🔊" : "🔇";
+      if (sounds.enabled) void sounds.unlock();
+    } else if (target.dataset.carromAction === "exit" || target.dataset.carromResultAction === "exit") exit();
     else if (target.dataset.carromAction === "new" || target.dataset.carromResultAction === "again") restart();
     else if (target.dataset.carromMode) restart(target.dataset.carromMode as Difficulty);
     else if (target.dataset.carromMove === "left") moveStriker(-1);
@@ -497,6 +515,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       canvas.removeEventListener("pointercancel", onPointerEnd);
       canvas.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      sounds.destroy();
       k.quit();
       container.innerHTML = "";
     },
