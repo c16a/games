@@ -3,6 +3,7 @@ import {
   AI_BASELINE_Y,
   BOARD_SIZE,
   CARROM_COIN_COUNT,
+  COIN_POINTS,
   FIELD_MAX,
   FIELD_MIN,
   FRICTION,
@@ -32,12 +33,16 @@ function pathLength(points: readonly { x: number; y: number }[]): number {
 }
 
 describe("Carrom setup and touch controls", () => {
-  test("sets up six coins per side, a queen, and the player's striker", () => {
+  test("uses the requested value for every coin color", () => {
+    expect(COIN_POINTS).toEqual({ black: 5, white: 10, red: 50 });
+  });
+
+  test("sets up nine black, nine white, one red, and the player's striker", () => {
     const state = createInitialState();
     expect(state.coins).toHaveLength(CARROM_COIN_COUNT * 2 + 1);
-    expect(remainingCoins(state, "player")).toBe(CARROM_COIN_COUNT);
-    expect(remainingCoins(state, "ai")).toBe(CARROM_COIN_COUNT);
-    expect(state.coins.filter(({ kind }) => kind === "queen")).toHaveLength(1);
+    expect(remainingCoins(state, "black")).toBe(CARROM_COIN_COUNT);
+    expect(remainingCoins(state, "white")).toBe(CARROM_COIN_COUNT);
+    expect(remainingCoins(state, "red")).toBe(1);
     expect(state.turn).toBe("player");
     expect(state.phase).toBe("aiming");
     expect(state.striker.y).toBe(PLAYER_BASELINE_Y);
@@ -143,8 +148,8 @@ describe("Carrom physics and turns", () => {
     let state: CarromState = {
       ...createInitialState(),
       coins: [
-        { ...createInitialState().coins.find(({ kind }) => kind === "player")!, x: 145, y: 360 },
-        { ...createInitialState().coins.find(({ kind }) => kind === "ai")!, x: 575, y: 360 },
+        { ...createInitialState().coins.find(({ kind }) => kind === "black")!, x: 145, y: 360 },
+        { ...createInitialState().coins.find(({ kind }) => kind === "white")!, x: 575, y: 360 },
       ],
     };
     state = launchPlayerShot(state, { x: state.striker.x, y: state.striker.y + 20 });
@@ -154,25 +159,104 @@ describe("Carrom physics and turns", () => {
     expect(state.striker.y).toBe(AI_BASELINE_Y);
   });
 
-  test("pocketing your own coin scores and earns another turn", () => {
+  test("pocketing a black or white coin awards its value and earns another turn", () => {
     const initial = createInitialState();
-    const playerCoins = initial.coins.filter(({ kind }) => kind === "player");
-    const aiCoin = initial.coins.find(({ kind }) => kind === "ai")!;
+    const blackCoins = initial.coins.filter(({ kind }) => kind === "black");
+    const whiteCoin = initial.coins.find(({ kind }) => kind === "white")!;
     let state: CarromState = {
       ...initial,
       phase: "moving",
-      shot: { shooter: "player", pocketed: [], strikerPocketed: false },
+      shot: { shooter: "player", pocketed: [], strikerPocketed: false, coveringRed: false },
       coins: [
-        { ...playerCoins[0]!, x: 76, y: 76, vx: -100, vy: -100 },
-        { ...playerCoins[1]!, x: 300, y: 300 },
-        { ...aiCoin, x: 500, y: 400 },
+        { ...blackCoins[0]!, x: 76, y: 76, vx: -100, vy: -100 },
+        { ...blackCoins[1]!, x: 300, y: 300 },
+        { ...whiteCoin, x: 500, y: 400 },
       ],
     };
     state = updateCarrom(state, 0.02);
-    expect(state.score.player).toBe(1);
+    expect(state.score.player).toBe(COIN_POINTS.black);
     expect(state.coins[0]!.pocketed).toBe(true);
     expect(state.turn).toBe("player");
     expect(state.phase).toBe("aiming");
+  });
+
+  test("red scores only after the same player covers it on the next shot", () => {
+    const initial = createInitialState();
+    const red = initial.coins.find(({ kind }) => kind === "red")!;
+    const white = initial.coins.find(({ kind }) => kind === "white")!;
+    const untouched = initial.coins.filter((coin) => coin.id !== red.id && coin.id !== white.id);
+    let state: CarromState = {
+      ...initial,
+      phase: "moving",
+      coins: [{ ...red, pocketed: true }, white, ...untouched],
+      shot: { shooter: "player", pocketed: ["red"], strikerPocketed: false, coveringRed: false },
+    };
+
+    state = updateCarrom(state, 0);
+    expect(state.pendingRed).toBe("player");
+    expect(state.score.player).toBe(0);
+    expect(state.turn).toBe("player");
+
+    state = {
+      ...state,
+      phase: "moving",
+      coins: state.coins.map((coin) => coin.id === white.id ? { ...coin, pocketed: true } : coin),
+      score: { ...state.score, player: COIN_POINTS.white },
+      shot: { shooter: "player", pocketed: ["white"], strikerPocketed: false, coveringRed: true },
+    };
+    state = updateCarrom(state, 0);
+    expect(state.pendingRed).toBeNull();
+    expect(state.score.player).toBe(COIN_POINTS.red + COIN_POINTS.white);
+    expect(state.coins.find(({ kind }) => kind === "red")?.pocketed).toBe(true);
+    expect(state.turn).toBe("player");
+  });
+
+  test("an uncovered red returns to the center and the turn passes", () => {
+    const initial = createInitialState();
+    const red = initial.coins.find(({ kind }) => kind === "red")!;
+    let state: CarromState = {
+      ...initial,
+      phase: "moving",
+      pendingRed: "player",
+      coins: initial.coins.map((coin) => coin.id === red.id ? { ...coin, x: 76, y: 76, pocketed: true } : coin),
+      shot: { shooter: "player", pocketed: [], strikerPocketed: false, coveringRed: true },
+    };
+    state = updateCarrom(state, 0);
+    const returnedRed = state.coins.find(({ kind }) => kind === "red")!;
+    expect(state.pendingRed).toBeNull();
+    expect(returnedRed.pocketed).toBe(false);
+    expect(returnedRed.x).toBe(BOARD_SIZE / 2);
+    expect(returnedRed.y).toBe(BOARD_SIZE / 2);
+    expect(state.turn).toBe("ai");
+    expect(state.score.player).toBe(0);
+  });
+
+  test("the match ends with the higher score when only red remains", () => {
+    const initial = createInitialState();
+    let state: CarromState = {
+      ...initial,
+      phase: "moving",
+      score: { player: 35, ai: 40 },
+      coins: initial.coins.map((coin) => coin.kind === "red" ? coin : { ...coin, pocketed: true }),
+      shot: { shooter: "player", pocketed: [], strikerPocketed: false, coveringRed: false },
+    };
+    state = updateCarrom(state, 0);
+    expect(state.phase).toBe("over");
+    expect(state.winner).toBe("ai");
+  });
+
+  test("the match also ends when every coin has been pocketed", () => {
+    const initial = createInitialState();
+    let state: CarromState = {
+      ...initial,
+      phase: "moving",
+      score: { player: 85, ai: 85 },
+      coins: initial.coins.map((coin) => ({ ...coin, pocketed: true })),
+      shot: { shooter: "ai", pocketed: [], strikerPocketed: false, coveringRed: false },
+    };
+    state = updateCarrom(state, 0);
+    expect(state.phase).toBe("over");
+    expect(state.winner).toBe("draw");
   });
 
   test("the AI launches a downward shot with hard mode more accurate and stronger", () => {

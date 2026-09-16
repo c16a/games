@@ -3,6 +3,7 @@ import {
   BOARD_SIZE,
   CARROM_POCKETS,
   COIN_RADIUS,
+  COIN_POINTS,
   FIELD_MAX,
   FIELD_MIN,
   MAX_PULL,
@@ -35,7 +36,9 @@ const COLORS = {
   line: [151, 67, 55],
   player: [255, 212, 59],
   ai: [47, 84, 150],
-  queen: [240, 62, 108],
+  black: [43, 43, 50],
+  white: [250, 245, 226],
+  red: [230, 57, 70],
   striker: [247, 252, 250],
   strikerRing: [12, 139, 131],
   guide: [21, 193, 213],
@@ -45,17 +48,24 @@ const COLORS = {
 function statusMessage(state: CarromState): string {
   if (state.phase === "over") {
     if (state.winner === "draw") return "What a match — it is a draw!";
-    return state.winner === "player" ? "You cleared your coins first. Brilliant!" : "The computer cleared its coins first. Great game!";
+    return state.winner === "player" ? "You scored the most points. Brilliant!" : "The computer scored the most points. Great game!";
   }
-  if (state.phase === "aiThinking") return `${state.difficulty === "hard" ? "Clever" : "Friendly"} computer is lining up a shot…`;
-  if (state.phase === "moving") return state.turn === "player" ? "Nice release — watch the coins!" : "Computer shot in motion…";
+  if (state.phase === "aiThinking") {
+    if (state.pendingRed === "ai") return "Computer must cover red with a black or white coin…";
+    return `${state.difficulty === "hard" ? "Clever" : "Friendly"} computer is lining up a shot…`;
+  }
+  if (state.phase === "moving") {
+    if (state.shot?.coveringRed) return state.turn === "player" ? "Cover red — pocket black or white!" : "Computer is trying to cover red…";
+    return state.turn === "player" ? "Nice release — watch the coins!" : "Computer shot in motion…";
+  }
+  if (state.pendingRed === "player") return "Cover red now: pocket a black or white coin on this shot!";
   return state.difficulty === "easy"
     ? "Tap the launch line, pull the striker back, and release. Follow the blue guide!"
     : "Tap the launch line, pull back, and release. Trust your aim!";
 }
 
 function boardDescription(state: CarromState): string {
-  return `${statusMessage(state)} You have ${remainingCoins(state, "player")} yellow coins left. The computer has ${remainingCoins(state, "ai")} blue coins left. Score ${state.score.player} to ${state.score.ai}.`;
+  return `${statusMessage(state)} ${remainingCoins(state, "black")} black coins, ${remainingCoins(state, "white")} white coins, and ${remainingCoins(state, "red")} red coins remain. Score ${state.score.player} to ${state.score.ai}.`;
 }
 
 function winnerTitle(state: CarromState): string {
@@ -87,8 +97,8 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
         <div class="carrom-mission">
           <div class="carrom-mission-icon" aria-hidden="true">◎</div>
           <div>
-            <p class="mission-title">Pocket all six yellow coins!</p>
-            <p class="mission-copy">Tap the bottom launch line to place your striker. Hold, pull back, then release.</p>
+            <p class="mission-title">Score the most points!</p>
+            <p class="mission-copy">Black is 5, white is 10, and red is 50 after you cover it on your next shot.</p>
           </div>
           <div class="carrom-mode" role="group" aria-label="Computer difficulty">
             <button type="button" data-carrom-mode="easy" aria-pressed="true"><span aria-hidden="true">✨</span> Easy</button>
@@ -102,6 +112,11 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
             <div class="carrom-turn" data-carrom-turn>Your turn</div>
             <div class="carrom-score carrom-score--ai"><span class="carrom-score-coin" aria-hidden="true"></span><span>Computer</span><strong data-carrom-ai-score>0</strong></div>
           </div>
+          <div class="carrom-coin-legend" aria-label="Coin values">
+            <span><i class="carrom-legend-coin carrom-legend-coin--black" aria-hidden="true"></i> Black <strong>${COIN_POINTS.black}</strong></span>
+            <span><i class="carrom-legend-coin carrom-legend-coin--white" aria-hidden="true"></i> White <strong>${COIN_POINTS.white}</strong></span>
+            <span><i class="carrom-legend-coin carrom-legend-coin--red" aria-hidden="true"></i> Red <strong>${COIN_POINTS.red}</strong></span>
+          </div>
 
           <div class="carrom-board-shell">
             <canvas
@@ -111,7 +126,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
               height="720"
               tabindex="0"
               role="application"
-              aria-label="Carrom board. Tap the bottom launch line to place the striker, drag back, and release to shoot. Use left and right arrow keys to move, then Space to shoot straight."
+              aria-label="Carrom board with black, white, and red coins. Tap the bottom launch line to place the striker, drag back, and release to shoot. Use left and right arrow keys to move, then Space to shoot straight."
             ></canvas>
           </div>
 
@@ -190,9 +205,9 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   }
 
   function discColor(disc: Disc): readonly [number, number, number] {
-    if (disc.kind === "player") return COLORS.player;
-    if (disc.kind === "ai") return COLORS.ai;
-    if (disc.kind === "queen") return COLORS.queen;
+    if (disc.kind === "black") return COLORS.black;
+    if (disc.kind === "white") return COLORS.white;
+    if (disc.kind === "red") return COLORS.red;
     return COLORS.striker;
   }
 
@@ -207,7 +222,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       outline: { width: disc.kind === "striker" ? 5 : 3, color: disc.kind === "striker" ? rgb(COLORS.strikerRing) : rgb(COLORS.ink) },
     });
     k.drawCircle({ pos: k.vec2(disc.x - disc.radius * 0.3, disc.y - disc.radius * 0.36), radius: disc.radius * 0.2, color: k.rgb(255, 255, 255), opacity: 0.72, anchor: "center" });
-    if (disc.kind === "queen") k.drawCircle({ pos: k.vec2(disc.x, disc.y), radius: 6, color: rgb(COLORS.player), anchor: "center", outline: { width: 2, color: rgb(COLORS.ink) } });
+    if (disc.kind === "red") k.drawCircle({ pos: k.vec2(disc.x, disc.y), radius: 6, color: rgb(COLORS.player), anchor: "center", outline: { width: 2, color: rgb(COLORS.ink) } });
   }
 
   function drawGuidePath(points: GuidePoint[], color: readonly [number, number, number], width: number): void {
@@ -253,8 +268,8 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     const ratio = Math.min(1, MAX_PULL / pullLength);
     const tether = { x: state.striker.x + pullX * ratio, y: state.striker.y + pullY * ratio };
     if (state.difficulty === "easy" && pullLength >= MIN_PULL) drawGuide(predictTrajectory(state.striker, state.coins, aimPointer));
-    k.drawLine({ p1: k.vec2(state.striker.x, state.striker.y), p2: k.vec2(tether.x, tether.y), width: 7, color: rgb(COLORS.queen), opacity: 0.72 });
-    k.drawCircle({ pos: k.vec2(tether.x, tether.y), radius: 10, color: rgb(COLORS.queen), anchor: "center", outline: { width: 3, color: k.rgb(255, 255, 255) } });
+    k.drawLine({ p1: k.vec2(state.striker.x, state.striker.y), p2: k.vec2(tether.x, tether.y), width: 7, color: rgb(COLORS.red), opacity: 0.72 });
+    k.drawCircle({ pos: k.vec2(tether.x, tether.y), radius: 10, color: rgb(COLORS.red), anchor: "center", outline: { width: 3, color: k.rgb(255, 255, 255) } });
 
     const facing = { x: -pullX / pullLength, y: -pullY / pullLength };
     const arrowStart = { x: state.striker.x + facing.x * 27, y: state.striker.y + facing.y * 27 };
@@ -320,7 +335,11 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   function renderState(previous?: CarromState): void {
     playerScore!.textContent = String(state.score.player);
     aiScore!.textContent = String(state.score.ai);
-    turnElement!.textContent = state.phase === "over" ? "Match over" : state.turn === "player" ? "Your turn" : "Computer turn";
+    turnElement!.textContent = state.phase === "over"
+      ? "Match over"
+      : state.pendingRed === state.turn
+        ? state.turn === "player" ? "Cover red!" : "Computer cover"
+        : state.turn === "player" ? "Your turn" : "Computer turn";
     turnElement!.classList.toggle("carrom-turn--ai", state.turn === "ai");
     messageElement!.textContent = statusMessage(state);
     summaryElement!.textContent = boardDescription(state);
@@ -332,8 +351,16 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     container.querySelectorAll<HTMLButtonElement>("[data-carrom-move]").forEach((button) => {
       button.disabled = state.phase !== "aiming" || state.turn !== "player";
     });
-    if (previous && (previous.score.player !== state.score.player || previous.score.ai !== state.score.ai)) {
-      messageElement!.textContent = `Pocketed! Score: you ${state.score.player}, computer ${state.score.ai}.`;
+    if (state.pendingRed && previous?.pendingRed !== state.pendingRed) {
+      messageElement!.textContent = state.pendingRed === "player"
+        ? "Red is pocketed! Cover it with black or white on your next shot."
+        : "Computer pocketed red and must cover it on the next shot.";
+    } else if (previous && (previous.score.player !== state.score.player || previous.score.ai !== state.score.ai)) {
+      const scorer = state.score.player !== previous.score.player ? "You" : "Computer";
+      const points = scorer === "You" ? state.score.player - previous.score.player : state.score.ai - previous.score.ai;
+      messageElement!.textContent = `${scorer} scored ${points} points! Total: you ${state.score.player}, computer ${state.score.ai}.`;
+    } else if (previous?.pendingRed && !state.pendingRed) {
+      messageElement!.textContent = "Red was not covered, so it returned to the center.";
     }
     if (state.phase === "over" && previous?.phase !== "over") showResult();
     scheduleAi();

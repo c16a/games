@@ -10,10 +10,11 @@ export const MIN_PULL = 12;
 export const MAX_PULL = 155;
 export const MAX_SHOT_SPEED = 900;
 export const FRICTION = 205;
+export const COIN_POINTS = { black: 5, white: 10, red: 50 } as const;
 
 export type Difficulty = "easy" | "hard";
 export type Player = "player" | "ai";
-export type CoinKind = Player | "queen";
+export type CoinKind = keyof typeof COIN_POINTS;
 export type GamePhase = "aiming" | "moving" | "aiThinking" | "over";
 
 export interface Vector {
@@ -34,6 +35,7 @@ export interface ShotRecord {
   shooter: Player;
   pocketed: CoinKind[];
   strikerPocketed: boolean;
+  coveringRed: boolean;
 }
 
 export interface CarromState {
@@ -44,6 +46,7 @@ export interface CarromState {
   coins: Disc[];
   score: Record<Player, number>;
   shot: ShotRecord | null;
+  pendingRed: Player | null;
   winner: Player | "draw" | null;
 }
 
@@ -71,7 +74,7 @@ const POCKETS: readonly Vector[] = [
   { x: FIELD_MAX, y: FIELD_MAX },
 ];
 
-const PLAYER_COIN_COUNT = 6;
+const STANDARD_COIN_COUNT = 9;
 const STOP_SPEED = 8;
 const REST_SPEED = 14;
 const WALL_RESTITUTION = 0.88;
@@ -96,20 +99,20 @@ function createCoin(id: string, kind: CoinKind, x: number, y: number): Disc {
 
 export function createCoins(): Disc[] {
   const center = BOARD_SIZE / 2;
-  const coins: Disc[] = [createCoin("queen", "queen", center, center)];
-  let playerIndex = 0;
-  let aiIndex = 0;
+  const coins: Disc[] = [createCoin("red", "red", center, center)];
+  let blackIndex = 0;
+  let whiteIndex = 0;
   for (let index = 0; index < 6; index += 1) {
     const angle = index * Math.PI / 3;
-    const kind: Player = index % 2 === 0 ? "player" : "ai";
-    const number = kind === "player" ? ++playerIndex : ++aiIndex;
-    coins.push(createCoin(`${kind}-${number}`, kind, center + Math.cos(angle) * 39, center + Math.sin(angle) * 39));
+    const kind: CoinKind = index % 2 === 0 ? "black" : "white";
+    const number = kind === "black" ? ++blackIndex : ++whiteIndex;
+    coins.push(createCoin(`${kind}-${number}`, kind, center + Math.cos(angle) * 36, center + Math.sin(angle) * 36));
   }
-  for (let index = 0; index < 6; index += 1) {
-    const angle = index * Math.PI / 3 + Math.PI / 6;
-    const kind: Player = index % 2 === 0 ? "ai" : "player";
-    const number = kind === "player" ? ++playerIndex : ++aiIndex;
-    coins.push(createCoin(`${kind}-${number}`, kind, center + Math.cos(angle) * 78, center + Math.sin(angle) * 78));
+  for (let index = 0; index < 12; index += 1) {
+    const angle = index * Math.PI / 6 + Math.PI / 12;
+    const kind: CoinKind = index % 2 === 0 ? "white" : "black";
+    const number = kind === "black" ? ++blackIndex : ++whiteIndex;
+    coins.push(createCoin(`${kind}-${number}`, kind, center + Math.cos(angle) * 72, center + Math.sin(angle) * 72));
   }
   return coins;
 }
@@ -136,6 +139,7 @@ export function createInitialState(difficulty: Difficulty = "easy"): CarromState
     coins: createCoins(),
     score: { player: 0, ai: 0 },
     shot: null,
+    pendingRed: null,
     winner: null,
   };
 }
@@ -191,7 +195,7 @@ function startShot(state: CarromState, shooter: Player, striker: Disc, velocity:
     phase: "moving",
     turn: shooter,
     striker: { ...striker, vx: velocity.x, vy: velocity.y, pocketed: false },
-    shot: { shooter, pocketed: [], strikerPocketed: false },
+    shot: { shooter, pocketed: [], strikerPocketed: false, coveringRed: state.pendingRed === shooter },
   };
 }
 
@@ -336,9 +340,8 @@ function pathIsClear(from: Vector, to: Vector, coins: readonly Disc[], ignoredId
 }
 
 export function chooseAiShot(state: CarromState, difficulty = state.difficulty, random: () => number = Math.random): ShotChoice {
-  const targets = state.coins.filter((coin) => !coin.pocketed && coin.kind === "ai");
-  const fallbackTargets = state.coins.filter((coin) => !coin.pocketed);
-  const candidates = targets.length > 0 ? targets : fallbackTargets;
+  const targets = state.coins.filter((coin) => !coin.pocketed);
+  const candidates = targets;
   const fallback = candidates[Math.floor(random() * Math.max(1, candidates.length))] ?? null;
   let target = fallback;
   let preferredX = fallback?.x ?? BOARD_SIZE / 2;
@@ -360,7 +363,9 @@ export function chooseAiShot(state: CarromState, difficulty = state.difficulty, 
         if (strikerX < minimum || strikerX > maximum || travelToBaseline <= 0) continue;
         const striker = { x: strikerX, y: AI_BASELINE_Y };
         if (!pathIsClear(striker, impact, state.coins, coin.id)) continue;
-        const score = Math.hypot(pocket.x - coin.x, pocket.y - coin.y) + travelToBaseline * 0.35;
+        const coverBonus = state.pendingRed === "ai" && coin.kind !== "red" ? COIN_POINTS.red : 0;
+        const pointValue = (coin.kind === "striker" ? 0 : COIN_POINTS[coin.kind]) + coverBonus;
+        const score = Math.hypot(pocket.x - coin.x, pocket.y - coin.y) + travelToBaseline * 0.35 - pointValue * 2.8;
         if (!best || score < best.score) best = { target: coin, strikerX, direction: coinDirection, score };
       }
     }
@@ -454,8 +459,9 @@ function awardPocket(state: CarromState, before: Disc[], after: Disc[], strikerB
     const previous = before[index];
     const coin = after[index];
     if (!previous || !coin || previous.pocketed || !coin.pocketed || !shot) continue;
-    if (coin.kind === "queen") score = { ...score, [shot.shooter]: score[shot.shooter] + 2 };
-    else if (coin.kind === "player" || coin.kind === "ai") score = { ...score, [coin.kind]: score[coin.kind] + 1 };
+    if (coin.kind === "black" || coin.kind === "white") {
+      score = { ...score, [shot.shooter]: score[shot.shooter] + COIN_POINTS[coin.kind] };
+    }
     shot = { ...shot, pocketed: [...shot.pocketed, coin.kind as CoinKind] };
   }
   if (!strikerBefore.pocketed && strikerAfter.pocketed && shot) shot = { ...shot, strikerPocketed: true };
@@ -467,27 +473,83 @@ function allStopped(state: CarromState): boolean {
   return moving.every((disc) => Math.hypot(disc.vx, disc.vy) < REST_SPEED);
 }
 
+function respotRed(coins: Disc[]): Disc[] {
+  const red = coins.find((coin) => coin.kind === "red");
+  if (!red) return coins;
+  const center = BOARD_SIZE / 2;
+  const candidates: Vector[] = [{ x: center, y: center }];
+  for (const radius of [38, 76]) {
+    for (let index = 0; index < 8; index += 1) {
+      const angle = index * Math.PI / 4;
+      candidates.push({ x: center + Math.cos(angle) * radius, y: center + Math.sin(angle) * radius });
+    }
+  }
+  const spot = candidates.find((candidate) => coins.every((coin) => {
+    if (coin.id === red.id || coin.pocketed) return true;
+    return Math.hypot(coin.x - candidate.x, coin.y - candidate.y) >= coin.radius + red.radius + 3;
+  })) ?? candidates[0]!;
+  return coins.map((coin) => coin.id === red.id
+    ? { ...coin, ...spot, vx: 0, vy: 0, pocketed: false }
+    : coin);
+}
+
+function matchWinner(score: Record<Player, number>): Player | "draw" {
+  if (score.player === score.ai) return "draw";
+  return score.player > score.ai ? "player" : "ai";
+}
+
 function finishShot(state: CarromState): CarromState {
   const shot = state.shot;
   if (!shot) return state;
-  const playerCleared = state.coins.every((coin) => coin.kind !== "player" || coin.pocketed);
-  const aiCleared = state.coins.every((coin) => coin.kind !== "ai" || coin.pocketed);
-  if (playerCleared || aiCleared) {
-    const winner: Player | "draw" = playerCleared && aiCleared
-      ? state.score.player === state.score.ai ? "draw" : state.score.player > state.score.ai ? "player" : "ai"
-      : playerCleared ? "player" : "ai";
-    return { ...state, phase: "over", winner, striker: { ...state.striker, vx: 0, vy: 0 }, shot: null };
+  let coins = state.coins;
+  let score = state.score;
+  let pendingRed = state.pendingRed;
+  const pocketedStandard = shot.pocketed.some((kind) => kind === "black" || kind === "white");
+
+  if (shot.coveringRed) {
+    if (pocketedStandard && !shot.strikerPocketed) {
+      score = { ...score, [shot.shooter]: score[shot.shooter] + COIN_POINTS.red };
+    } else {
+      coins = respotRed(coins);
+    }
+    pendingRed = null;
+  } else if (shot.pocketed.includes("red")) {
+    if (shot.strikerPocketed) coins = respotRed(coins);
+    else pendingRed = shot.shooter;
   }
 
-  const pocketedOwn = shot.pocketed.includes(shot.shooter) || shot.pocketed.includes("queen");
-  const keepTurn = pocketedOwn && !shot.strikerPocketed;
+  const standardCoinsRemain = coins.some((coin) => coin.kind !== "red" && !coin.pocketed);
+  if (pendingRed && !standardCoinsRemain) {
+    coins = respotRed(coins);
+    pendingRed = null;
+  }
+  const remaining = coins.filter((coin) => !coin.pocketed);
+  const matchOver = remaining.length === 0 || (remaining.length === 1 && remaining[0]!.kind === "red");
+  if (matchOver) {
+    return {
+      ...state,
+      coins,
+      score,
+      pendingRed,
+      phase: "over",
+      winner: matchWinner(score),
+      striker: { ...state.striker, vx: 0, vy: 0 },
+      shot: null,
+    };
+  }
+
+  const pocketedAnyCoin = shot.pocketed.length > 0;
+  const keepTurn = pocketedAnyCoin && !shot.strikerPocketed;
   const turn: Player = keepTurn ? shot.shooter : shot.shooter === "player" ? "ai" : "player";
   const baselineY = turn === "player" ? PLAYER_BASELINE_Y : AI_BASELINE_Y;
-  const preferredX = findOpenStrikerX(state.coins, BOARD_SIZE / 2, baselineY);
+  const preferredX = findOpenStrikerX(coins, BOARD_SIZE / 2, baselineY);
   return {
     ...state,
     phase: turn === "player" ? "aiming" : "aiThinking",
     turn,
+    coins,
+    score,
+    pendingRed,
     striker: strikerAt(turn, preferredX),
     shot: null,
   };
@@ -518,8 +580,8 @@ export function updateCarrom(state: CarromState, delta: number): CarromState {
   return allStopped(next) ? finishShot(next) : next;
 }
 
-export function remainingCoins(state: CarromState, player: Player): number {
-  return state.coins.filter((coin) => coin.kind === player && !coin.pocketed).length;
+export function remainingCoins(state: CarromState, kind: CoinKind): number {
+  return state.coins.filter((coin) => coin.kind === kind && !coin.pocketed).length;
 }
 
 export function shotPower(striker: Vector, pointer: Vector): number {
@@ -527,4 +589,4 @@ export function shotPower(striker: Vector, pointer: Vector): number {
 }
 
 export const CARROM_POCKETS = POCKETS;
-export const CARROM_COIN_COUNT = PLAYER_COIN_COUNT;
+export const CARROM_COIN_COUNT = STANDARD_COIN_COUNT;
