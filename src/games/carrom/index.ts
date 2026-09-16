@@ -1,4 +1,5 @@
 import type { GameContext, GameInstance } from "../../platform/game";
+import { vibrate } from "../../platform/haptics";
 import {
   BOARD_SIZE,
   CARROM_POCKETS,
@@ -44,6 +45,8 @@ const COLORS = {
   guide: [21, 193, 213],
   coinGuide: [255, 146, 43],
 } as const;
+
+const PLAYER_SCORE_VIBRATION_MS = 50;
 
 function statusMessage(state: CarromState): string {
   if (state.phase === "over") {
@@ -333,6 +336,7 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
   }
 
   function renderState(previous?: CarromState): void {
+    if (previous && state.score.player > previous.score.player) vibrate(PLAYER_SCORE_VIBRATION_MS);
     playerScore!.textContent = String(state.score.player);
     aiScore!.textContent = String(state.score.ai);
     turnElement!.textContent = state.phase === "over"
