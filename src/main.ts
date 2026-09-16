@@ -7,10 +7,71 @@ import {
   type PrefetchIntent,
   type RouteRequest,
 } from "./platform/game-loader";
+import {
+  oppositeTheme,
+  readStoredTheme,
+  resolveTheme,
+  storeTheme,
+  type Theme,
+} from "./platform/theme";
 
 const appElement = document.querySelector<HTMLElement>("#app");
 if (!appElement) throw new Error("App root is missing");
 const app: HTMLElement = appElement;
+const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+let activeTheme = resolveTheme(readStoredTheme(window.localStorage), systemTheme.matches);
+
+function applyTheme(theme: Theme): void {
+  activeTheme = theme;
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+  document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.setAttribute(
+    "content",
+    theme === "dark" ? "#14101f" : "#fff8e8",
+  );
+  window.dispatchEvent(new CustomEvent<Theme>("happyarcade:themechange", { detail: theme }));
+}
+
+function createThemeToggle(): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.className = "theme-toggle";
+  button.type = "button";
+
+  const update = (): void => {
+    const nextTheme = oppositeTheme(activeTheme);
+    button.innerHTML = `
+      <span class="theme-toggle-icon" aria-hidden="true">${activeTheme === "dark" ? "☀️" : "🌙"}</span>
+      <span class="theme-toggle-label">${nextTheme === "dark" ? "Dark" : "Light"}</span>`;
+    button.setAttribute("aria-label", `Switch to ${nextTheme} mode`);
+    button.title = `Switch to ${nextTheme} mode`;
+  };
+
+  update();
+  button.addEventListener("click", () => {
+    applyTheme(oppositeTheme(activeTheme));
+    storeTheme(activeTheme, window.localStorage);
+    update();
+  });
+  return button;
+}
+
+function installThemeToggle(header: HTMLElement): void {
+  const existingTrailingItem = header.lastElementChild;
+  if (!existingTrailingItem) return;
+
+  const actions = document.createElement("div");
+  actions.className = "header-actions";
+  existingTrailingItem.replaceWith(actions);
+  actions.append(existingTrailingItem, createThemeToggle());
+}
+
+applyTheme(activeTheme);
+
+systemTheme.addEventListener("change", ({ matches }) => {
+  if (readStoredTheme(window.localStorage)) return;
+  applyTheme(matches ? "dark" : "light");
+  document.querySelector<HTMLButtonElement>(".theme-toggle")?.replaceWith(createThemeToggle());
+});
 
 const games = [
   {
@@ -224,6 +285,9 @@ function renderPicker(): void {
       </section>
     </main>`;
 
+  const header = app.querySelector<HTMLElement>(".site-header");
+  if (header) installThemeToggle(header);
+
   app.querySelectorAll<HTMLElement>("[data-game]").forEach((card) => {
     const gameId = card.dataset.game;
     if (!gameId || !isGameId(gameId)) return;
@@ -265,6 +329,8 @@ async function renderGame(gameId: GameId, request: RouteRequest): Promise<void> 
     return;
   }
   activeGame = instance;
+  const header = app.querySelector<HTMLElement>(".game-header");
+  if (header) installThemeToggle(header);
 }
 
 async function renderRoute(): Promise<void> {

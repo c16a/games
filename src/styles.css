@@ -2,13 +2,36 @@
   font-family: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif;
   color: #241f45;
   background: #fff8e8;
+  color-scheme: light;
   font-synthesis: none;
   --ink: #241f45;
+  --muted-ink: #635d7c;
   --purple: #7048e8;
   --purple-dark: #5635cf;
   --cream: #fff8e8;
   --card: #ffffff;
+  --surface: #ffffff;
+  --surface-soft: #f4f0ff;
+  --surface-tint: #faf8ff;
+  --subtle-border: #ddd6f5;
   --shadow: 0 14px 0 rgba(65, 45, 129, 0.12), 0 24px 48px rgba(65, 45, 129, 0.12);
+}
+
+:root[data-theme="dark"] {
+  color: #f7f2ff;
+  background: #14101f;
+  color-scheme: dark;
+  --ink: #f7f2ff;
+  --muted-ink: #c7bdd9;
+  --purple: #9d7cff;
+  --purple-dark: #c5b3ff;
+  --cream: #14101f;
+  --card: #211a31;
+  --surface: #211a31;
+  --surface-soft: #2b2340;
+  --surface-tint: #302745;
+  --subtle-border: #5e5077;
+  --shadow: 0 14px 0 rgba(0, 0, 0, .24), 0 24px 48px rgba(0, 0, 0, .34);
 }
 
 * { box-sizing: border-box; }
@@ -27,6 +50,8 @@ body {
   max-width: 100%;
   margin: 0;
   min-height: 100vh;
+  color: var(--ink);
+  background: var(--cream);
   overflow-x: hidden;
   overflow-x: clip;
   overscroll-behavior-x: none;
@@ -77,6 +102,32 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   align-items: center;
   justify-content: space-between;
 }
+
+.header-actions, .carrom-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 46px;
+  padding: 7px 13px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 4px 5px 0 var(--ink);
+  cursor: pointer;
+  font-size: .82rem;
+  font-weight: 900;
+}
+.theme-toggle:hover { background: var(--surface-soft); }
+.theme-toggle:active { translate: 2px 3px; box-shadow: 2px 2px 0 var(--ink); }
+.theme-toggle-icon { font-size: 1.15rem; line-height: 1; }
 
 .brand {
   display: inline-flex;
@@ -1869,6 +1920,149 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .revealed-code .peg { width: 42px; height: 42px; }
 .result-actions { display: grid; gap: 8px; }
 
+/* Theme overrides keep each game's bright identity while changing its page chrome and play surfaces. */
+:root[data-theme="dark"] .picker-page {
+  background:
+    radial-gradient(circle at 12% 20%, rgba(255, 201, 40, .12) 0 85px, transparent 86px),
+    radial-gradient(circle at 88% 74%, rgba(255, 71, 120, .1) 0 120px, transparent 121px),
+    linear-gradient(145deg, #171220 0%, #211933 100%);
+}
+
+:root[data-theme="dark"] .game-page {
+  background:
+    radial-gradient(circle at 90% 14%, rgb(var(--theme-accent, 157 124 255) / .14) 0 120px, transparent 121px),
+    radial-gradient(circle at 6% 76%, rgb(var(--theme-accent, 157 124 255) / .08) 0 135px, transparent 136px),
+    linear-gradient(rgb(255 255 255 / .035) 2px, transparent 2px),
+    linear-gradient(90deg, rgb(255 255 255 / .035) 2px, transparent 2px),
+    #181322;
+  background-size: auto, auto, 34px 34px, 34px 34px, auto;
+}
+:root[data-theme="dark"] .glow-page { --theme-accent: 32 201 151; }
+:root[data-theme="dark"] .snake-page { --theme-accent: 81 207 102; }
+:root[data-theme="dark"] .breakout-page { --theme-accent: 255 107 107; }
+:root[data-theme="dark"] .tetris-page { --theme-accent: 116 143 252; }
+:root[data-theme="dark"] .lander-page { --theme-accent: 132 94 247; }
+:root[data-theme="dark"] .shooter-page { --theme-accent: 34 184 207; }
+:root[data-theme="dark"] .chess-page { --theme-accent: 47 158 68; }
+:root[data-theme="dark"] .voyage-page { --theme-accent: 250 176 5; }
+:root[data-theme="dark"] .tower-page { --theme-accent: 249 115 22; }
+:root[data-theme="dark"] .dash-page { --theme-accent: 77 171 247; }
+:root[data-theme="dark"] .twenty-page { --theme-accent: 255 212 59; }
+:root[data-theme="dark"] .carrom-page { --theme-accent: 245 159 0; }
+:root[data-theme="dark"] .flappy-page { --theme-accent: 34 184 207; }
+
+:root[data-theme="dark"] .loading-game { background: #181322; }
+:root[data-theme="dark"] :is(
+  .tiny-badge,
+  .game-card,
+  .icon-button,
+  .guess-panel,
+  .attempt-panel,
+  .glow-workspace,
+  .snake-workspace,
+  .breakout-workspace,
+  .tetris-workspace,
+  .lander-workspace,
+  .shooter-workspace,
+  .chess-play,
+  .voyage-workspace,
+  .tower-workspace,
+  .dash-workspace,
+  .twenty-workspace,
+  .carrom-workspace,
+  .flappy-workspace,
+  .result-card
+) {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+:root[data-theme="dark"] :is(
+  .guess-slot,
+  .color-choice,
+  .attempt-row,
+  .difficulty-picker,
+  .snake-speed,
+  .tetris-stats div,
+  .tetris-tip,
+  .chess-status-row,
+  .voyage-milestones div,
+  .voyage-resource,
+  .voyage-choice > button,
+  .voyage-journal li,
+  .tower-difficulty,
+  .dash-stats,
+  .twenty-directions,
+  .carrom-coin-legend,
+  .carrom-power,
+  .flappy-board-prompt
+) {
+  color: var(--ink);
+  background: var(--surface-soft);
+  border-color: var(--subtle-border);
+}
+
+:root[data-theme="dark"] :is(
+  .guess-slot--filled,
+  .attempt-score span,
+  .difficulty-picker button[aria-pressed="true"],
+  .snake-speed button[aria-pressed="true"],
+  .chess-choice-group span,
+  .chess-promotion-options button,
+  .voyage-choice-icon
+) {
+  color: var(--ink);
+  background: var(--surface-tint);
+  border-color: var(--ink);
+}
+
+:root[data-theme="dark"] :is(
+  .picker-intro p,
+  .game-card-content > span:not(.game-badge):not(.play-label),
+  .game-hint,
+  .clue-key,
+  .empty-attempts,
+  .glow-message,
+  .snake-message,
+  .breakout-message,
+  .tetris-message,
+  .lander-message,
+  .shooter-message,
+  .chess-engine-status,
+  .voyage-outcome,
+  .tower-message,
+  .dash-message,
+  .dash-feedback,
+  .twenty-message,
+  .carrom-message,
+  .flappy-message,
+  .result-card p:not(.eyebrow)
+) { color: var(--muted-ink); }
+
+:root[data-theme="dark"] .coming-card {
+  color: var(--muted-ink);
+  background: rgba(33, 26, 49, .72);
+  border-color: #6d5b8d;
+}
+:root[data-theme="dark"] .game-badge { color: #ff9cbb; background: #4b2135; }
+:root[data-theme="dark"] .text-button:hover { background: var(--surface-soft); }
+:root[data-theme="dark"] .check-button:disabled {
+  color: #aaa0ba;
+  background: #3b3447;
+  border-color: #71667f;
+}
+:root[data-theme="dark"] .celebration { background: rgba(8, 6, 13, .82); }
+:root[data-theme="dark"] :is(.glow-result-card, .snake-result-card, .breakout-result-card, .tetris-result-card, .lander-result-card, .shooter-result-card, .chess-result-card, .voyage-reset-card, .tower-result-card, .dash-result-card, .twenty-result-card, .carrom-result-card, .flappy-result-card) {
+  background: var(--surface);
+}
+
+:root[data-theme="dark"] :is(.game-card, .icon-button, .theme-toggle, .guess-panel, .attempt-panel, .glow-workspace, .snake-workspace, .breakout-workspace, .tetris-workspace, .lander-workspace, .shooter-workspace, .chess-play, .voyage-workspace, .tower-workspace, .dash-workspace, .twenty-workspace, .carrom-workspace, .flappy-workspace, .result-card) {
+  box-shadow: 6px 7px 0 rgba(0, 0, 0, .62);
+}
+:root[data-theme="dark"] :is(.mission-card, .glow-mission, .snake-mission, .breakout-mission, .tetris-mission, .lander-mission, .shooter-mission, .voyage-banner, .tower-mission, .dash-mission, .twenty-mission, .carrom-mission, .flappy-mission, .chess-setup, .carrom-setup) {
+  box-shadow: 7px 8px 0 rgba(0, 0, 0, .62);
+}
+
 @keyframes float { 50% { transform: translateY(-10px) rotate(2deg); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pop { from { transform: scale(.5); opacity: .4; } }
@@ -1881,6 +2075,8 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 @media (max-width: 760px) {
   .picker-page { padding: 18px 16px 40px; }
   .tiny-badge { display: none; }
+  .theme-toggle { width: 50px; padding-inline: 0; }
+  .theme-toggle-label { display: none; }
   .picker-intro { grid-template-columns: 1fr; margin: 50px auto 30px; }
   .orbit-doodle { position: absolute; width: 120px; right: -35px; top: 76px; opacity: .45; }
   .orbit-center { width: 66px; height: 66px; font-size: 1.8rem; border-width: 3px; box-shadow: 4px 5px 0 var(--ink); }
@@ -1940,6 +2136,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .game-page { padding-inline: 10px; }
   .game-header { padding-inline: 4px; }
   .icon-button { width: 44px; height: 44px; border-radius: 14px; }
+  .theme-toggle { width: 44px; min-height: 44px; border-radius: 14px; }
   .mission-card { gap: 9px; padding: 12px; border-radius: 20px; }
   .secret-peg { width: 31px; height: 31px; }
   .turn-bubble { min-width: 68px; }

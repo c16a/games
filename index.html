@@ -3,9 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#7048e8" />
+    <meta name="theme-color" content="#fff8e8" />
     <meta name="description" content="A cheerful collection of quick games for curious kids." />
     <title>Happy Arcade</title>
+    <script>
+      (() => {
+        const storageKey = "happy-arcade-theme";
+        let savedTheme;
+        try {
+          savedTheme = localStorage.getItem(storageKey);
+        } catch {}
+        const theme = savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
