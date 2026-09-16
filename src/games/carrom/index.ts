@@ -2,6 +2,7 @@ import type { GameContext, GameInstance } from "../../platform/game";
 import {
   BOARD_SIZE,
   CARROM_POCKETS,
+  COIN_RADIUS,
   FIELD_MAX,
   FIELD_MIN,
   MAX_PULL,
@@ -12,6 +13,7 @@ import {
   type Difficulty,
   type Disc,
   type GuidePoint,
+  type TrajectoryPrediction,
   type Vector,
   createInitialState,
   displayToBoard,
@@ -37,6 +39,7 @@ const COLORS = {
   striker: [247, 252, 250],
   strikerRing: [12, 139, 131],
   guide: [21, 193, 213],
+  coinGuide: [255, 146, 43],
 } as const;
 
 function statusMessage(state: CarromState): string {
@@ -207,11 +210,11 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
     if (disc.kind === "queen") k.drawCircle({ pos: k.vec2(disc.x, disc.y), radius: 6, color: rgb(COLORS.player), anchor: "center", outline: { width: 2, color: rgb(COLORS.ink) } });
   }
 
-  function drawGuide(points: GuidePoint[]): void {
+  function drawGuidePath(points: GuidePoint[], color: readonly [number, number, number], width: number): void {
     for (let index = 1; index < points.length; index += 1) {
       const from = points[index - 1]!;
       const to = points[index]!;
-      k.drawLine({ p1: k.vec2(from.x, from.y), p2: k.vec2(to.x, to.y), width: 8, color: rgb(COLORS.guide), opacity: 0.76 });
+      k.drawLine({ p1: k.vec2(from.x, from.y), p2: k.vec2(to.x, to.y), width, color: rgb(color), opacity: 0.78 });
       const distance = Math.hypot(to.x - from.x, to.y - from.y);
       const count = Math.floor(distance / 24);
       for (let dot = 1; dot < count; dot += 1) {
@@ -220,10 +223,25 @@ export async function mount({ container, exit }: GameContext): Promise<GameInsta
       }
     }
     for (const point of points.slice(1)) {
-      if (point.kind === "bounce") k.drawCircle({ pos: k.vec2(point.x, point.y), radius: 11, color: rgb(COLORS.board), anchor: "center", outline: { width: 5, color: rgb(COLORS.guide) } });
-      if (point.kind === "coin") k.drawCircle({ pos: k.vec2(point.x, point.y), radius: 9, color: rgb(COLORS.guide), anchor: "center" });
-      if (point.kind === "end") k.drawCircle({ pos: k.vec2(point.x, point.y), radius: 8, color: rgb(COLORS.guide), anchor: "center", outline: { width: 3, color: k.rgb(255, 255, 255) } });
+      if (point.kind === "bounce") k.drawCircle({ pos: k.vec2(point.x, point.y), radius: 11, color: rgb(COLORS.board), anchor: "center", outline: { width: 5, color: rgb(color) } });
+      if (point.kind === "coin") k.drawCircle({ pos: k.vec2(point.x, point.y), radius: 9, color: rgb(color), anchor: "center" });
+      if (point.kind === "end") k.drawCircle({ pos: k.vec2(point.x, point.y), radius: 8, color: rgb(color), anchor: "center", outline: { width: 3, color: k.rgb(255, 255, 255) } });
     }
+  }
+
+  function drawGuide(prediction: TrajectoryPrediction): void {
+    drawGuidePath(prediction.strikerPath, COLORS.guide, 8);
+    if (prediction.coinPath.length < 2) return;
+    const coinStart = prediction.coinPath[0]!;
+    k.drawCircle({
+      pos: k.vec2(coinStart.x, coinStart.y),
+      radius: COIN_RADIUS + 8,
+      color: rgb(COLORS.board),
+      opacity: 0.22,
+      anchor: "center",
+      outline: { width: 5, color: rgb(COLORS.coinGuide) },
+    });
+    drawGuidePath(prediction.coinPath, COLORS.coinGuide, 7);
   }
 
   function drawAim(): void {

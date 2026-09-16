@@ -24,6 +24,13 @@ import {
   velocityFromPull,
 } from "./logic";
 
+function pathLength(points: readonly { x: number; y: number }[]): number {
+  return points.slice(1).reduce((sum, point, index) => {
+    const previous = points[index]!;
+    return sum + Math.hypot(point.x - previous.x, point.y - previous.y);
+  }, 0);
+}
+
 describe("Carrom setup and touch controls", () => {
   test("sets up six coins per side, a queen, and the player's striker", () => {
     const state = createInitialState();
@@ -69,15 +76,12 @@ describe("Easy-mode trajectory guide", () => {
     const state = { ...createInitialState(), coins: [] };
     const weakPointer = { x: state.striker.x, y: state.striker.y + 45 };
     const strongPointer = { x: state.striker.x, y: state.striker.y + 120 };
-    const weak = predictTrajectory(state.striker, state.coins, weakPointer);
-    const strong = predictTrajectory(state.striker, state.coins, strongPointer);
+    const weak = predictTrajectory(state.striker, state.coins, weakPointer).strikerPath;
+    const strong = predictTrajectory(state.striker, state.coins, strongPointer).strikerPath;
     const weakEnd = weak.at(-1)!;
     const strongEnd = strong.at(-1)!;
     const weakDistance = Math.hypot(weakEnd.x - state.striker.x, weakEnd.y - state.striker.y);
-    const strongDistance = strong.slice(1).reduce((sum, point, index) => {
-      const previous = strong[index]!;
-      return sum + Math.hypot(point.x - previous.x, point.y - previous.y);
-    }, 0);
+    const strongDistance = pathLength(strong);
     expect(weakDistance).toBeCloseTo((MAX_SHOT_SPEED * 45 / MAX_PULL) ** 2 / (2 * FRICTION), 4);
     expect(strongDistance).toBeGreaterThan(weakDistance);
   });
@@ -85,7 +89,7 @@ describe("Easy-mode trajectory guide", () => {
   test("reflects once from a side cushion and shows the final destination", () => {
     const state = { ...createInitialState(), coins: [] };
     const pointer = { x: state.striker.x - 140, y: state.striker.y + 65 };
-    const guide = predictTrajectory(state.striker, state.coins, pointer, 1);
+    const guide = predictTrajectory(state.striker, state.coins, pointer, 1).strikerPath;
     expect(guide.some(({ kind }) => kind === "bounce")).toBe(true);
     expect(guide.at(-1)!.kind).toBe("end");
     expect(guide).toHaveLength(3);
@@ -94,10 +98,30 @@ describe("Easy-mode trajectory guide", () => {
   test("stops where the striker first contacts a coin", () => {
     const state = createInitialState();
     const coin = { ...state.coins[0]!, x: state.striker.x, y: state.striker.y - 170 };
-    const guide = predictTrajectory(state.striker, [coin], { x: state.striker.x, y: state.striker.y + 120 });
-    expect(guide.at(-1)?.kind).toBe("coin");
-    expect(guide.at(-1)?.coinId).toBe(coin.id);
-    expect(guide.at(-1)!.y).toBeCloseTo(coin.y + coin.radius + state.striker.radius, 5);
+    const prediction = predictTrajectory(state.striker, [coin], { x: state.striker.x, y: state.striker.y + 120 });
+    expect(prediction.strikerPath.at(-1)?.kind).toBe("coin");
+    expect(prediction.strikerPath.at(-1)?.coinId).toBe(coin.id);
+    expect(prediction.strikerPath.at(-1)!.y).toBeCloseTo(coin.y + coin.radius + state.striker.radius, 5);
+    expect(prediction.coinPath[0]).toMatchObject({ x: coin.x, y: coin.y, kind: "start" });
+    expect(prediction.coinPath.length).toBeGreaterThan(1);
+  });
+
+  test("projects a longer coin path for a harder hit", () => {
+    const state = createInitialState();
+    const coin = { ...state.coins[0]!, x: state.striker.x, y: state.striker.y - 170 };
+    const soft = predictTrajectory(state.striker, [coin], { x: state.striker.x, y: state.striker.y + 75 });
+    const hard = predictTrajectory(state.striker, [coin], { x: state.striker.x, y: state.striker.y + 125 });
+    expect(pathLength(hard.coinPath)).toBeGreaterThan(pathLength(soft.coinPath));
+  });
+
+  test("angles the coin path from the exact point of contact", () => {
+    const state = createInitialState();
+    const coin = { ...state.coins[0]!, x: state.striker.x + 25, y: state.striker.y - 170 };
+    const prediction = predictTrajectory(state.striker, [coin], { x: state.striker.x, y: state.striker.y + 125 });
+    const destination = prediction.coinPath.at(-1)!;
+    expect(prediction.hitCoinId).toBe(coin.id);
+    expect(destination.x).toBeGreaterThan(coin.x);
+    expect(destination.y).toBeLessThan(coin.y);
   });
 });
 

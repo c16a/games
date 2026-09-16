@@ -52,6 +52,12 @@ export interface GuidePoint extends Vector {
   coinId?: string;
 }
 
+export interface TrajectoryPrediction {
+  strikerPath: GuidePoint[];
+  coinPath: GuidePoint[];
+  hitCoinId: string | null;
+}
+
 export interface ShotChoice {
   strikerX: number;
   velocity: Vector;
@@ -205,9 +211,9 @@ function rayCircleDistance(origin: Vector, direction: Vector, center: Vector, ra
   return distance > 0.01 ? distance : null;
 }
 
-function wallDistance(origin: Vector, direction: Vector): { distance: number; axis: "x" | "y" } | null {
-  const minimum = FIELD_MIN + STRIKER_RADIUS;
-  const maximum = FIELD_MAX - STRIKER_RADIUS;
+function wallDistance(origin: Vector, direction: Vector, radius: number): { distance: number; axis: "x" | "y" } | null {
+  const minimum = FIELD_MIN + radius;
+  const maximum = FIELD_MAX - radius;
   const xDistance = direction.x > 0 ? (maximum - origin.x) / direction.x : direction.x < 0 ? (minimum - origin.x) / direction.x : Number.POSITIVE_INFINITY;
   const yDistance = direction.y > 0 ? (maximum - origin.y) / direction.y : direction.y < 0 ? (minimum - origin.y) / direction.y : Number.POSITIVE_INFINITY;
   const xValid = xDistance > 0.01 ? xDistance : Number.POSITIVE_INFINITY;
@@ -216,14 +222,15 @@ function wallDistance(origin: Vector, direction: Vector): { distance: number; ax
   return xValid <= yValid ? { distance: xValid, axis: "x" } : { distance: yValid, axis: "y" };
 }
 
-export function predictTrajectory(striker: Disc, coins: readonly Disc[], pointer: Vector, maxBounces = 1): GuidePoint[] {
-  const velocity = velocityFromPull(striker, pointer);
-  const speed = length(velocity);
-  if (speed <= 0) return [{ x: striker.x, y: striker.y, kind: "start" }];
+interface PathTrace {
+  points: GuidePoint[];
+  hit: { coin: Disc; direction: Vector; speed: number } | null;
+}
 
+function tracePath(originPoint: Vector, directionPoint: Vector, speed: number, radius: number, coins: readonly Disc[], maxBounces: number): PathTrace {
   let remaining = speed ** 2 / (2 * FRICTION);
-  let origin: Vector = { x: striker.x, y: striker.y };
-  let direction = normalized(velocity);
+  let origin: Vector = { ...originPoint };
+  let direction = normalized(directionPoint);
   let bounces = 0;
   const points: GuidePoint[] = [{ ...origin, kind: "start" }];
 
@@ -231,10 +238,10 @@ export function predictTrajectory(striker: Disc, coins: readonly Disc[], pointer
     let coinHit: { distance: number; coin: Disc } | null = null;
     for (const coin of coins) {
       if (coin.pocketed) continue;
-      const distance = rayCircleDistance(origin, direction, coin, striker.radius + coin.radius);
+      const distance = rayCircleDistance(origin, direction, coin, radius + coin.radius);
       if (distance !== null && distance <= remaining && (!coinHit || distance < coinHit.distance)) coinHit = { distance, coin };
     }
-    const wall = wallDistance(origin, direction);
+    const wall = wallDistance(origin, direction, radius);
     const wallBeforeEnd = wall && wall.distance <= remaining;
 
     if (coinHit && (!wallBeforeEnd || coinHit.distance <= wall!.distance)) {
@@ -244,7 +251,14 @@ export function predictTrajectory(striker: Disc, coins: readonly Disc[], pointer
         kind: "coin",
         coinId: coinHit.coin.id,
       });
-      break;
+      return {
+        points,
+        hit: {
+          coin: coinHit.coin,
+          direction,
+          speed: Math.sqrt(2 * FRICTION * Math.max(0, remaining - coinHit.distance)),
+        },
+      };
     }
 
     if (!wallBeforeEnd) {
@@ -268,7 +282,39 @@ export function predictTrajectory(striker: Disc, coins: readonly Disc[], pointer
     origin = { x: impact.x + direction.x * 0.01, y: impact.y + direction.y * 0.01 };
     bounces += 1;
   }
-  return points;
+  return { points, hit: null };
+}
+
+export function predictTrajectory(striker: Disc, coins: readonly Disc[], pointer: Vector, maxBounces = 1): TrajectoryPrediction {
+  const velocity = velocityFromPull(striker, pointer);
+  const speed = length(velocity);
+  if (speed <= 0) return {
+    strikerPath: [{ x: striker.x, y: striker.y, kind: "start" }],
+    coinPath: [],
+    hitCoinId: null,
+  };
+
+  const strikerTrace = tracePath(striker, velocity, speed, striker.radius, coins, maxBounces);
+  if (!strikerTrace.hit) return { strikerPath: strikerTrace.points, coinPath: [], hitCoinId: null };
+
+  const target = strikerTrace.hit.coin;
+  const strikerImpact = strikerTrace.points.at(-1)!;
+  const collisionNormal = normalized({ x: target.x - strikerImpact.x, y: target.y - strikerImpact.y });
+  const normalShare = Math.max(0, strikerTrace.hit.direction.x * collisionNormal.x + strikerTrace.hit.direction.y * collisionNormal.y);
+  const transferredSpeed = strikerTrace.hit.speed * normalShare * (1 + DISC_RESTITUTION) / 2;
+  if (transferredSpeed < STOP_SPEED) return {
+    strikerPath: strikerTrace.points,
+    coinPath: [{ x: target.x, y: target.y, kind: "start" }],
+    hitCoinId: target.id,
+  };
+
+  const otherCoins = coins.filter((coin) => coin.id !== target.id);
+  const coinTrace = tracePath(target, collisionNormal, transferredSpeed, target.radius, otherCoins, maxBounces);
+  return {
+    strikerPath: strikerTrace.points,
+    coinPath: coinTrace.points,
+    hitCoinId: target.id,
+  };
 }
 
 function rotate(vector: Vector, angle: number): Vector {
