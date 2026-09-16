@@ -109,12 +109,20 @@ const games: GameCard[] = [
     icon: "◎",
     accent: "#f59f00",
   },
+  {
+    id: "flappy-bird",
+    name: "Flappy Bird",
+    description: "Tap to flutter through a sky full of tricky gaps!",
+    badge: "One Tap",
+    icon: "🐤",
+    accent: "#22b8cf",
+  },
 ];
 
 let activeGame: GameInstance | undefined;
 let kaplayPreloadScheduled = false;
 
-type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris" | "lunar-lander" | "space-shooter" | "endless-voyage" | "chess" | "carrom";
+type GameId = "mastermind" | "glow-grid" | "tower-tangle" | "color-dash" | "2048" | "snake" | "breakout" | "tetris" | "lunar-lander" | "space-shooter" | "endless-voyage" | "chess" | "carrom" | "flappy-bird";
 type Route = "home" | GameId;
 
 const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
@@ -131,6 +139,7 @@ const gameLoaders: Record<GameId, () => Promise<GameModule>> = {
   "endless-voyage": () => import("./games/endless-voyage"),
   chess: () => import("./games/chess"),
   carrom: () => import("./games/carrom"),
+  "flappy-bird": () => import("./games/flappy-bird"),
 };
 
 function isGameId(value: string): value is GameId {

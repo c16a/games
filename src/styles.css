@@ -1624,6 +1624,162 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .carrom-result-button { background: #a85b1b; }
 .carrom-result-button:hover:not(:disabled) { background: #8d4712; }
 
+/* Flappy Bird */
+.flappy-page {
+  background:
+    radial-gradient(circle at 14% 20%, rgba(255, 215, 64, .18) 0 90px, transparent 91px),
+    linear-gradient(160deg, #e6fbff 0%, #f4f0ff 72%);
+}
+.flappy-game { width: min(820px, 100%); margin: 0 auto; }
+.flappy-eyebrow { color: #087f8c; }
+.flappy-mission {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 20px;
+  color: #164b55;
+  background: linear-gradient(115deg, #c5f6fa, #e3fafc);
+  border: 4px solid var(--ink);
+  border-radius: 26px;
+  box-shadow: 7px 8px 0 var(--ink);
+}
+.flappy-mission .mission-copy { color: #39717a; }
+.flappy-mission-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  background: #fff7c2;
+  border: 3px solid var(--ink);
+  border-radius: 22px 28px 20px 30px;
+  box-shadow: 3px 4px 0 var(--ink);
+  font-size: 2.2rem;
+  transform: rotate(-5deg);
+}
+.flappy-scores {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(68px, 1fr));
+  gap: 7px;
+}
+.flappy-scores div {
+  display: grid;
+  justify-items: center;
+  min-width: 72px;
+  padding: 7px 10px;
+  background: rgba(255,255,255,.78);
+  border: 2px solid #78cbd5;
+  border-radius: 14px;
+}
+.flappy-scores span { color: #39717a; font-size: .72rem; font-weight: 900; text-transform: uppercase; }
+.flappy-scores strong { color: #126c78; font-size: 1.3rem; line-height: 1.15; }
+.flappy-scores div:last-child strong { font-size: .95rem; }
+.flappy-workspace {
+  margin-top: 24px;
+  padding: clamp(10px, 3vw, 22px);
+  background: white;
+  border: 3px solid var(--ink);
+  border-radius: 30px;
+  box-shadow: 8px 9px 0 var(--ink);
+}
+.flappy-board-shell {
+  position: relative;
+  width: min(480px, 100%);
+  aspect-ratio: 3 / 4;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #78dcf0;
+  border: 4px solid var(--ink);
+  border-radius: clamp(20px, 4vw, 30px);
+  box-shadow: inset 0 5px 0 rgba(255,255,255,.25), 6px 7px 0 rgba(36,31,69,.18);
+}
+.flappy-canvas {
+  display: block;
+  width: 100% !important;
+  max-width: 100%;
+  height: auto !important;
+  aspect-ratio: 3 / 4;
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+}
+.flappy-canvas:active { cursor: grabbing; }
+.flappy-canvas:focus-visible { outline: 5px solid #7048e8; outline-offset: -9px; border-radius: clamp(16px, 3vw, 25px); }
+.flappy-board-score {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  left: 50%;
+  translate: -50% 0;
+  color: white;
+  pointer-events: none;
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  font-weight: 950;
+  line-height: 1;
+  text-shadow: -3px -3px 0 #2a2444, 3px -3px 0 #2a2444, -3px 3px 0 #2a2444, 3px 3px 0 #2a2444;
+}
+.flappy-board-prompt {
+  position: absolute;
+  z-index: 3;
+  inset: 39% auto auto 50%;
+  display: grid;
+  justify-items: center;
+  width: min(250px, 72%);
+  padding: 13px 17px;
+  translate: -50% -50%;
+  color: #2a2444;
+  text-align: center;
+  pointer-events: none;
+  background: rgba(255,255,255,.91);
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  box-shadow: 5px 6px 0 var(--ink);
+}
+.flappy-board-prompt[hidden] { display: none; }
+.flappy-board-prompt strong { font-size: 1.25rem; }
+.flappy-board-prompt span { color: #5f5975; font-size: .86rem; font-weight: 800; }
+.flappy-message { min-height: 25px; margin: 12px 0 10px; color: #635d7c; text-align: center; font-size: .9rem; font-weight: 850; }
+.flappy-controls {
+  display: grid;
+  grid-template-columns: 1fr minmax(124px, 1.25fr) 1fr;
+  align-items: center;
+  gap: 9px;
+  width: min(540px, 100%);
+  margin: 0 auto;
+}
+.flappy-controls button { min-height: 58px; }
+.flappy-flap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 68px !important;
+  color: #2a2444;
+  background: #ffd740;
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  box-shadow: 4px 5px 0 var(--ink);
+  cursor: pointer;
+  font-weight: 950;
+}
+.flappy-flap span {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  color: white;
+  background: #ff8f49;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  font-size: 1.3rem;
+}
+.flappy-flap:active:not(:disabled) { translate: 0 3px; box-shadow: 2px 2px 0 var(--ink); }
+.flappy-flap:disabled { opacity: .45; cursor: not-allowed; }
+.flappy-result-card { background: #f0fdff; }
+.flappy-result-icon { font-size: 4rem; }
+.flappy-result-button { background: #087f8c; }
+.flappy-result-button:hover:not(:disabled) { background: #066975; }
+
 .celebration { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(36,31,69,.72); backdrop-filter: blur(6px); }
 .celebration[hidden] { display: none; }
 .result-card { width: min(430px, 100%); padding: 30px; text-align: center; background: #fffdf5; border: 4px solid var(--ink); border-radius: 32px; box-shadow: 10px 12px 0 var(--ink); animation: resultIn .38s cubic-bezier(.2,.9,.3,1.2); }
@@ -1672,6 +1828,8 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .shooter-scores { grid-column: 1 / -1; grid-template-columns: repeat(3, 1fr); }
   .carrom-mission { grid-template-columns: auto 1fr; }
   .carrom-mode { grid-column: 1 / -1; }
+  .flappy-mission { grid-template-columns: auto 1fr; }
+  .flappy-scores { grid-column: 1 / -1; grid-template-columns: repeat(3, 1fr); }
   .voyage-banner { grid-template-columns: auto 1fr; }
   .voyage-journal-button { grid-column: 1 / -1; }
 }
@@ -1835,6 +1993,20 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .carrom-touch-controls button span { display: none; }
   .carrom-touch-controls > div { min-width: 0; min-height: 52px; padding: 4px; }
   .carrom-new-button { min-height: 47px; }
+  .flappy-mission { padding: 12px; gap: 10px; }
+  .flappy-mission-icon { width: 48px; height: 48px; border-radius: 16px 20px 15px 21px; font-size: 1.6rem; }
+  .flappy-mission .mission-title { font-size: 1rem; }
+  .flappy-mission .mission-copy { display: none; }
+  .flappy-scores { gap: 5px; }
+  .flappy-scores div { min-width: 0; padding-inline: 4px; }
+  .flappy-workspace { padding: 7px; border-radius: 23px; }
+  .flappy-board-shell { border-radius: 19px; }
+  .flappy-board-score { top: 12px; }
+  .flappy-message { margin-block: 8px; padding-inline: 4px; font-size: .82rem; }
+  .flappy-controls { grid-template-columns: 1fr 1.2fr 1fr; gap: 5px; }
+  .flappy-controls button { min-width: 0; min-height: 52px; padding-inline: 5px; }
+  .flappy-flap { min-height: 61px !important; border-radius: 16px; }
+  .flappy-flap span { width: 31px; height: 31px; }
   .chess-setup { grid-template-columns: 1fr; gap: 14px; padding: 17px 14px; border-radius: 23px; }
   .chess-setup-art { width: 64px; height: 64px; border-radius: 19px; font-size: 2.5rem; }
   .chess-setup-copy h2 { font-size: 2.05rem; }
