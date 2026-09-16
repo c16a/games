@@ -299,6 +299,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .loading-game p { font-weight: 900; }
 
 .game-page {
+  --game-content-width: 1120px;
   min-height: 100vh;
   padding: 20px clamp(14px, 4vw, 52px) 44px;
   background:
@@ -308,8 +309,15 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   background-size: 34px 34px;
 }
 
-.game-header { margin-bottom: 18px; }
-.game-heading { text-align: center; }
+.game-header {
+  width: min(var(--game-content-width), 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  margin-bottom: 18px;
+}
+.game-header > :first-child { justify-self: start; }
+.game-header > :last-child { justify-self: end; }
+.game-heading { min-width: 0; text-align: center; }
 .game-heading h1 { font-size: clamp(2rem, 5vw, 3rem); }
 .icon-button {
   display: grid;
@@ -386,6 +394,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .attempt-score span { padding: 5px 7px; background: white; border: 2px solid #ddd6f5; border-radius: 10px; font-size: .78rem; white-space: nowrap; }
 
 .glow-page {
+  --game-content-width: 820px;
   background:
     radial-gradient(circle at 12% 12%, rgba(255, 214, 69, .22) 0 120px, transparent 121px),
     linear-gradient(rgba(32, 201, 151, .055) 2px, transparent 2px),
@@ -537,6 +546,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .glow-result-card { background: #f4fff9; }
 
 .snake-page {
+  --game-content-width: 820px;
   background:
     radial-gradient(circle at 10% 16%, rgba(81, 207, 102, .23) 0 110px, transparent 111px),
     radial-gradient(circle at 92% 78%, rgba(255, 212, 59, .22) 0 125px, transparent 126px),
@@ -669,6 +679,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .snake-result-icon { font-size: 3.25rem; }
 
 .breakout-page {
+  --game-content-width: 860px;
   background:
     radial-gradient(circle at 9% 18%, rgba(255, 107, 107, .22) 0 110px, transparent 111px),
     radial-gradient(circle at 92% 76%, rgba(77, 171, 247, .2) 0 125px, transparent 126px),
@@ -754,6 +765,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .breakout-result-icon { font-size: 3.25rem; }
 
 .tetris-page {
+  --game-content-width: 880px;
   background:
     radial-gradient(circle at 9% 18%, rgba(116, 143, 252, .2) 0 110px, transparent 111px),
     radial-gradient(circle at 92% 76%, rgba(177, 151, 252, .2) 0 125px, transparent 126px),
@@ -810,6 +822,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .tetris-result-icon { font-size: 3.25rem; }
 
 .lander-page {
+  --game-content-width: 930px;
   background:
     radial-gradient(circle at 91% 15%, rgba(132, 94, 247, .2) 0 115px, transparent 116px),
     radial-gradient(circle at 7% 78%, rgba(77, 171, 247, .14) 0 130px, transparent 131px),
@@ -865,6 +878,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .lander-result-icon { font-size: 3.5rem; }
 
 .shooter-page {
+  --game-content-width: 720px;
   background:
     radial-gradient(circle at 90% 14%, rgba(34, 184, 207, .2) 0 120px, transparent 121px),
     radial-gradient(circle at 6% 76%, rgba(116, 143, 252, .17) 0 135px, transparent 136px),
@@ -934,6 +948,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .shooter-result-icon { display: block; font-size: 3.5rem; }
 
 .chess-page {
+  --game-content-width: 720px;
   background:
     radial-gradient(circle at 91% 12%, rgba(81, 207, 102, .18) 0 120px, transparent 121px),
     radial-gradient(circle at 5% 78%, rgba(255, 212, 59, .17) 0 135px, transparent 136px),
@@ -1002,6 +1017,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 @keyframes chessThink { to { transform: translateY(-7px); opacity: .45; } }
 
 .voyage-page {
+  --game-content-width: 900px;
   background:
     radial-gradient(circle at 91% 13%, rgba(250, 176, 5, .22) 0 115px, transparent 116px),
     radial-gradient(circle at 5% 72%, rgba(81, 207, 102, .14) 0 145px, transparent 146px),
@@ -1068,6 +1084,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .voyage-confirm-reset:hover:not(:disabled) { background: #e67700; }
 
 .tower-page {
+  --game-content-width: 900px;
   background:
     radial-gradient(circle at 88% 14%, rgba(255, 146, 43, .2) 0 110px, transparent 111px),
     linear-gradient(rgba(255, 146, 43, .05) 2px, transparent 2px),
@@ -1252,6 +1269,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .tower-win-stars { color: #f59f00; }
 
 .dash-page {
+  --game-content-width: 840px;
   background:
     radial-gradient(circle at 10% 18%, rgba(77, 171, 247, .22) 0 105px, transparent 106px),
     radial-gradient(circle at 91% 76%, rgba(255, 107, 138, .2) 0 125px, transparent 126px),
@@ -1390,6 +1408,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .dash-win-stars { color: #f59f00; }
 
 .twenty-page {
+  --game-content-width: 820px;
   background:
     radial-gradient(circle at 88% 14%, rgba(255, 212, 59, .28) 0 110px, transparent 111px),
     radial-gradient(circle at 8% 78%, rgba(255, 146, 43, .17) 0 125px, transparent 126px),
@@ -1495,6 +1514,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .twenty-trophy { font-size: 4rem; }
 
 .carrom-page {
+  --game-content-width: 820px;
   background:
     radial-gradient(circle at 10% 16%, rgba(245, 159, 0, .2) 0 110px, transparent 111px),
     radial-gradient(circle at 92% 78%, rgba(12, 139, 131, .16) 0 125px, transparent 126px),
@@ -1756,6 +1776,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 
 /* Flappy Bird */
 .flappy-page {
+  --game-content-width: 820px;
   background:
     radial-gradient(circle at 14% 20%, rgba(255, 215, 64, .18) 0 90px, transparent 91px),
     linear-gradient(160deg, #e6fbff 0%, #f4f0ff 72%);
@@ -2174,7 +2195,17 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .game-badge { padding: 5px 9px; font-size: .72rem; }
   .play-label { margin-top: 11px; font-size: .9rem; }
   .game-page { padding-inline: 10px; }
-  .game-header { padding-inline: 4px; }
+  .game-header {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "heading heading heading"
+      "back . actions";
+    gap: 10px 8px;
+    padding-inline: 4px;
+  }
+  .game-header > :first-child { grid-area: back; }
+  .game-header > :last-child { grid-area: actions; }
+  .game-heading { grid-area: heading; }
   .icon-button { width: 44px; height: 44px; border-radius: 14px; }
   .theme-toggle { width: 44px; min-height: 44px; border-radius: 14px; }
   .mission-card { gap: 9px; padding: 12px; border-radius: 20px; }
