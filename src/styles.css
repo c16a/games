@@ -875,6 +875,64 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .lander-result-card { background: #f3f0ff; }
 .lander-result-icon { font-size: 3.5rem; }
 
+.labyrinth-page {
+  --game-content-width: 900px;
+  background:
+    radial-gradient(circle at 91% 16%, rgba(255, 212, 59, .21) 0 105px, transparent 106px),
+    radial-gradient(circle at 7% 79%, rgba(47, 158, 111, .17) 0 135px, transparent 136px),
+    linear-gradient(rgba(47, 158, 111, .045) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(47, 158, 111, .045) 2px, transparent 2px),
+    #f2fbf5;
+  background-size: auto, auto, 34px 34px, 34px 34px, auto;
+}
+.labyrinth-eyebrow { color: #19724f; }
+.labyrinth-game { width: min(900px, 100%); margin: 0 auto; }
+.labyrinth-mission {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 20px;
+  color: #173c31;
+  background: linear-gradient(110deg, #b2f2bb, #fff3bf);
+  border: 4px solid var(--ink);
+  border-radius: 26px;
+  box-shadow: 7px 8px 0 var(--ink);
+}
+.labyrinth-mission .mission-copy { color: #3d6558; }
+.labyrinth-mission-icon { display: grid; place-items: center; width: 64px; height: 64px; background: #fff9db; border: 3px solid var(--ink); border-radius: 21px 17px 22px 18px; box-shadow: 3px 4px 0 var(--ink); font-size: 2.2rem; transform: rotate(-4deg); }
+.labyrinth-scores { display: grid; grid-template-columns: repeat(3, minmax(66px, auto)); gap: 7px; }
+.labyrinth-scores div { padding: 7px 9px; text-align: center; background: white; border: 3px solid var(--ink); border-radius: 15px; }
+.labyrinth-scores strong, .labyrinth-scores span { display: block; }
+.labyrinth-scores strong { max-width: 88px; overflow: hidden; font-size: 1.2rem; line-height: 1.1; text-overflow: ellipsis; }
+.labyrinth-scores span { margin-bottom: 3px; color: #356656; font-size: .66rem; font-weight: 900; text-transform: uppercase; }
+.labyrinth-workspace { margin-top: 24px; padding: clamp(12px, 3vw, 25px); background: white; border: 3px solid var(--ink); border-radius: 30px; box-shadow: 8px 9px 0 var(--ink); }
+.labyrinth-lantern { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; width: min(680px, 100%); margin: 0 auto 11px; padding: 8px 13px; color: #ecfdf5; background: #172f2b; border: 2px solid #4d766b; border-radius: 16px; }
+.labyrinth-lantern > span { font-size: 1.6rem; }
+.labyrinth-lantern > div { min-width: 0; }
+.labyrinth-lantern-label { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 5px; color: #d8f5e7; font-size: .76rem; }
+.labyrinth-lantern-label strong { text-transform: uppercase; }
+.labyrinth-lantern-label b { font-variant-numeric: tabular-nums; }
+.labyrinth-light-track { height: 11px; overflow: hidden; background: #405a54; border-radius: 999px; }
+.labyrinth-light-track i { display: block; width: 100%; height: 100%; background: linear-gradient(90deg, #ffd43b, #fff3bf); border-radius: inherit; box-shadow: 0 0 9px rgba(255, 212, 59, .8); transition: width .16s ease-out; }
+.labyrinth-light-track i.labyrinth-light-bar--low { background: linear-gradient(90deg, #ff6b6b, #ffa94d); }
+.labyrinth-board-shell { width: min(680px, 100%); margin: 0 auto; padding: clamp(6px, 1.5vw, 10px); background: linear-gradient(145deg, #2f9e6f, #7357a7); border: 4px solid var(--ink); border-radius: 27px; box-shadow: 5px 6px 0 rgba(36,31,69,.18); }
+.labyrinth-canvas { display: block; width: 100% !important; max-width: 100%; height: auto !important; aspect-ratio: 1; border: 3px solid var(--ink); border-radius: 17px; outline-offset: 5px; touch-action: none; user-select: none; }
+.labyrinth-message { min-height: 25px; margin: 12px 0 9px; color: #4f695f; text-align: center; font-size: .9rem; font-weight: 850; }
+.labyrinth-pad { display: grid; grid-template-columns: repeat(3, minmax(54px, 78px)); grid-template-areas: ". up ." "left down right"; justify-content: center; gap: 7px; margin: 0 auto 12px; }
+.labyrinth-pad button { display: grid; place-items: center; min-height: 55px; padding: 5px; color: #244a3d; background: #d3f9d8; border: 3px solid var(--ink); border-radius: 15px; box-shadow: 3px 4px 0 var(--ink); cursor: pointer; font-size: 1.45rem; font-weight: 950; touch-action: manipulation; }
+.labyrinth-pad button[data-labyrinth-direction="up"] { grid-area: up; }
+.labyrinth-pad button[data-labyrinth-direction="left"] { grid-area: left; }
+.labyrinth-pad button[data-labyrinth-direction="down"] { grid-area: down; }
+.labyrinth-pad button[data-labyrinth-direction="right"] { grid-area: right; }
+.labyrinth-pad button:active { translate: 2px 2px; background: #b2f2bb; box-shadow: 1px 2px 0 var(--ink); }
+.labyrinth-actions { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 9px; max-width: 590px; margin: 0 auto; }
+.labyrinth-actions .soft-button, .labyrinth-actions .check-button { width: auto; margin: 0; }
+.labyrinth-start, .labyrinth-result-button { color: white; background: #2f9e6f; }
+.labyrinth-start:hover:not(:disabled), .labyrinth-result-button:hover:not(:disabled) { background: #237c58; }
+.labyrinth-result-card { background: #effbf3; }
+.labyrinth-result-icon { font-size: 3.6rem; }
+
 .shooter-page {
   --game-content-width: 720px;
   background:
@@ -1886,6 +1944,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 :root[data-theme="dark"] .breakout-page { --theme-accent: 255 107 107; }
 :root[data-theme="dark"] .tetris-page { --theme-accent: 116 143 252; }
 :root[data-theme="dark"] .lander-page { --theme-accent: 132 94 247; }
+:root[data-theme="dark"] .labyrinth-page { --theme-accent: 47 158 111; }
 :root[data-theme="dark"] .shooter-page { --theme-accent: 34 184 207; }
 :root[data-theme="dark"] .chess-page { --theme-accent: 47 158 68; }
 :root[data-theme="dark"] .voyage-page { --theme-accent: 250 176 5; }
@@ -1907,6 +1966,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .breakout-workspace,
   .tetris-workspace,
   .lander-workspace,
+  .labyrinth-workspace,
   .shooter-workspace,
   .chess-play,
   .voyage-workspace,
@@ -2008,6 +2068,7 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .breakout-message,
   .tetris-message,
   .lander-message,
+  .labyrinth-message,
   .shooter-message,
   .chess-engine-status,
   .voyage-outcome,
@@ -2033,14 +2094,14 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   border-color: #71667f;
 }
 :root[data-theme="dark"] .celebration { background: rgba(8, 6, 13, .82); }
-:root[data-theme="dark"] :is(.glow-result-card, .snake-result-card, .breakout-result-card, .tetris-result-card, .lander-result-card, .shooter-result-card, .chess-result-card, .voyage-reset-card, .tower-result-card, .dash-result-card, .twenty-result-card, .carrom-result-card, .flappy-result-card) {
+:root[data-theme="dark"] :is(.glow-result-card, .snake-result-card, .breakout-result-card, .tetris-result-card, .lander-result-card, .labyrinth-result-card, .shooter-result-card, .chess-result-card, .voyage-reset-card, .tower-result-card, .dash-result-card, .twenty-result-card, .carrom-result-card, .flappy-result-card) {
   background: var(--surface);
 }
 
-:root[data-theme="dark"] :is(.game-card, .icon-button, .theme-toggle, .guess-panel, .attempt-panel, .glow-workspace, .snake-workspace, .breakout-workspace, .tetris-workspace, .lander-workspace, .shooter-workspace, .chess-play, .voyage-workspace, .tower-workspace, .dash-workspace, .twenty-workspace, .carrom-workspace, .result-card) {
+:root[data-theme="dark"] :is(.game-card, .icon-button, .theme-toggle, .guess-panel, .attempt-panel, .glow-workspace, .snake-workspace, .breakout-workspace, .tetris-workspace, .lander-workspace, .labyrinth-workspace, .shooter-workspace, .chess-play, .voyage-workspace, .tower-workspace, .dash-workspace, .twenty-workspace, .carrom-workspace, .result-card) {
   box-shadow: 6px 7px 0 rgba(0, 0, 0, .62);
 }
-:root[data-theme="dark"] :is(.mission-card, .glow-mission, .snake-mission, .breakout-mission, .tetris-mission, .lander-mission, .shooter-mission, .voyage-banner, .tower-mission, .dash-mission, .twenty-mission, .carrom-mission, .flappy-mission, .chess-setup, .carrom-setup) {
+:root[data-theme="dark"] :is(.mission-card, .glow-mission, .snake-mission, .breakout-mission, .tetris-mission, .lander-mission, .labyrinth-mission, .shooter-mission, .voyage-banner, .tower-mission, .dash-mission, .twenty-mission, .carrom-mission, .flappy-mission, .chess-setup, .carrom-setup) {
   box-shadow: 7px 8px 0 rgba(0, 0, 0, .62);
 }
 
@@ -2222,6 +2283,18 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
   .lander-flight-controls button { min-height: 56px; }
   .lander-actions { grid-template-columns: 1fr 1fr; }
   .lander-actions [data-lander-action="new"] { grid-column: 1 / -1; }
+  .labyrinth-mission { grid-template-columns: auto 1fr; padding: 12px; gap: 10px; }
+  .labyrinth-mission-icon { width: 48px; height: 48px; border-radius: 15px; font-size: 1.6rem; }
+  .labyrinth-mission .mission-title { font-size: 1rem; }
+  .labyrinth-mission .mission-copy { display: none; }
+  .labyrinth-scores { grid-column: 1 / -1; grid-template-columns: repeat(3, 1fr); }
+  .labyrinth-workspace { padding: 8px; border-radius: 23px; }
+  .labyrinth-lantern { margin-bottom: 7px; padding: 6px 9px; }
+  .labyrinth-board-shell { padding: 5px; border-radius: 20px; }
+  .labyrinth-canvas { border-radius: 13px; }
+  .labyrinth-pad { grid-template-columns: repeat(3, minmax(52px, 68px)); gap: 6px; }
+  .labyrinth-actions { grid-template-columns: 1fr 1fr; }
+  .labyrinth-actions [data-labyrinth-action="new"] { grid-column: 1 / -1; }
   .shooter-mission { padding: 12px; gap: 10px; }
   .shooter-mission-icon { width: 48px; height: 48px; border-radius: 15px; font-size: 1.6rem; }
   .shooter-mission .mission-title { font-size: 1rem; }

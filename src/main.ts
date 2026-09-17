@@ -165,6 +165,16 @@ const games = [
     accent: "#845ef7",
   },
   {
+    id: "lantern-labyrinth",
+    engine: "kaplay",
+    load: () => import("./games/lantern-labyrinth"),
+    name: "Lantern Labyrinth",
+    description: "Gather fireflies and find the moon gate before your glow fades!",
+    badge: "Explore",
+    icon: "🏮",
+    accent: "#2f9e6f",
+  },
+  {
     id: "space-shooter",
     engine: "kaplay",
     load: () => import("./games/space-shooter"),
