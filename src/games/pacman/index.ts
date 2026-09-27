@@ -19,11 +19,10 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
       </header>
       <section class="pacman-game" aria-label="Pacman game">
         <div class="pacman-stats"><div>Score <strong data-score>0</strong></div><div>Lives <strong data-lives>3</strong></div><div>Level <strong data-level>1</strong></div><div>Pellets <strong data-pellets></strong></div></div>
-        <div class="pacman-board"><canvas tabindex="0" role="img" aria-label="Pacman maze. Use arrow keys, WASD, swipe, or direction buttons." width="570" height="480"></canvas></div>
+        <div class="pacman-board"><canvas tabindex="0" role="img" aria-label="Pacman maze. Use arrow keys, WASD, or swipe to steer." width="570" height="480"></canvas></div>
         <p class="pacman-message" aria-live="polite" data-message></p>
-        <div class="pacman-actions"><button class="check-button" data-action="start">Start game</button><button class="soft-button" data-action="pause" disabled>Pause</button></div>
-        <div class="pacman-pad" aria-label="Direction controls"><button data-direction="up" aria-label="Move up">↑</button><button data-direction="left" aria-label="Move left">←</button><button data-direction="down" aria-label="Move down">↓</button><button data-direction="right" aria-label="Move right">→</button></div>
-        <p class="pacman-help">Eat every pellet. Big pellets let you chase the ghosts!<br>Arrow keys / WASD · Swipe or tap to steer · P to pause</p>
+        <div class="pacman-actions"><button class="icon-button" data-action="start" aria-label="Start game" title="Start game"><span aria-hidden="true">▶</span></button><button class="icon-button" data-action="pause" aria-label="Pause" title="Pause" disabled><span aria-hidden="true">⏸</span></button></div>
+        <p class="pacman-help">Eat every pellet. Big pellets let you chase the ghosts!<br>Arrow keys / WASD · Swipe to steer · P to pause</p>
       </section>
     </main>`;
   const canvas = container.querySelector<HTMLCanvasElement>("canvas")!;
@@ -37,10 +36,15 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
     element("[data-level]").textContent = String(state.level);
     element("[data-pellets]").textContent = String(state.pellets.size);
     start.hidden = state.status === "running" || state.status === "paused";
-    start.textContent = state.status === "won" ? "Next level" : state.status === "lost" ? "Play again" : state.lives < 3 ? "Continue" : "Start game";
+    const startLabel = state.status === "won" ? "Next level" : state.status === "lost" ? "Play again" : state.lives < 3 ? "Continue" : "Start game";
+    start.setAttribute("aria-label", startLabel);
+    start.title = startLabel;
     pause.disabled = state.status !== "running" && state.status !== "paused";
-    pause.textContent = state.status === "paused" ? "Resume" : "Pause";
-    const message = state.status === "won" ? "Maze cleared! Ready for a faster round?" : state.status === "lost" ? `Game over. You scored ${state.score}! Try again?` : state.status === "paused" ? "Paused. Take your time." : state.status === "ready" ? (state.lives < 3 ? "A ghost caught you. Press Continue when ready." : "Ready? Clear the maze and watch for ghosts.") : state.power > 0 ? "Power pellet! Chase the blue ghosts with the white rings." : state.shield > 0 ? "Your white ring protects you for a moment." : "Keep munching! Big pellets turn the tables.";
+    const pauseLabel = state.status === "paused" ? "Resume" : "Pause";
+    pause.setAttribute("aria-label", pauseLabel);
+    pause.title = pauseLabel;
+    pause.querySelector("span")!.textContent = state.status === "paused" ? "▶" : "⏸";
+    const message = state.status === "won" ? "Maze cleared! Ready for a faster round?" : state.status === "lost" ? `Game over. You scored ${state.score}! Try again?` : state.status === "paused" ? "Paused. Take your time." : state.status === "ready" ? (state.lives < 3 ? "A ghost caught you. Press ▶ to continue when ready." : "Ready? Clear the maze and watch for ghosts.") : state.power > 0 ? "Power pellet! Chase the blue ghosts with the white rings." : state.shield > 0 ? "Your white ring protects you for a moment." : "Keep munching! Big pellets turn the tables.";
     if (element("[data-message]").textContent !== message) element("[data-message]").textContent = message;
   }
   function steer(direction: Direction): void { state.queued = direction; canvas.focus({ preventScroll: true }); }
@@ -48,7 +52,6 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
   container.addEventListener("click", event => {
     const target = (event.target as Element).closest<HTMLElement>("button");
     if (!target) return;
-    if (target.dataset.direction) steer(target.dataset.direction as Direction);
     const action = target.dataset.action;
     if (action === "exit") { exit(); return; }
     if (action === "restart") state = createState();

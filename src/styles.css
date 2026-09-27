@@ -2515,12 +2515,6 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 .pacman-board canvas:focus-visible { outline: 3px solid #ffda3c; outline-offset: -4px; }
 .pacman-message { min-height: 48px; margin: 14px 0 8px; text-align: center; font-size: 16px; }
 .pacman-actions { display: flex; justify-content: center; gap: 12px; }
-.pacman-actions button { min-height: 48px; font-size: 16px; }
+.pacman-actions button { width: 44px; height: 44px; min-height: 44px; padding: 0; font-size: 20px; border-radius: 12px; }
 .pacman-actions [hidden] { display: none; }
-.pacman-pad { display: grid; grid-template-columns: repeat(3, 60px); gap: 6px; justify-content: center; margin: 16px auto; }
-.pacman-pad button { min-height: 52px; border: 2px solid #6579d9; border-radius: 14px; background: #182450; color: #fff; font-size: 26px; touch-action: manipulation; cursor: pointer; }
-.pacman-pad button:first-child { grid-column: 2; }
-.pacman-pad button:nth-child(2) { grid-column: 1; }
-.pacman-pad button:focus-visible { outline: 3px solid #d18e00; outline-offset: 3px; }
-.pacman-pad button:active { background: #3b4e96; }
 .pacman-help { font-size: 16px; line-height: 1.6; text-align: center; }
