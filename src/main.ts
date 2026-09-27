@@ -75,6 +75,16 @@ systemTheme.addEventListener("change", ({ matches }) => {
 
 const games = [
   {
+    id: "pacman",
+    engine: "kaplay",
+    load: () => import("./games/pacman"),
+    name: "Pacman",
+    description: "Munch every pellet and turn the tables on the ghosts!",
+    badge: "Arcade",
+    icon: "👻",
+    accent: "#ffd43b",
+  },
+  {
     id: "mastermind",
     engine: "dom",
     load: () => import("./games/mastermind"),

@@ -2505,3 +2505,22 @@ button:focus-visible, a:focus-visible { outline: 4px solid #38bdf8; outline-offs
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Pacman keeps its high-contrast maze in both colour themes. */
+.pacman-game { width: min(100%, 660px); margin: 0 auto; }
+.pacman-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; text-align: center; font-size: 16px; }
+.pacman-stats strong { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+.pacman-board { overflow: hidden; border: 3px solid #465fd0; border-radius: 18px; background: #090d20; }
+.pacman-board canvas { display: block; width: 100% !important; max-width: 100%; height: auto !important; aspect-ratio: 19 / 16; touch-action: none; }
+.pacman-board canvas:focus-visible { outline: 3px solid #ffda3c; outline-offset: -4px; }
+.pacman-message { min-height: 48px; margin: 14px 0 8px; text-align: center; font-size: 16px; }
+.pacman-actions { display: flex; justify-content: center; gap: 12px; }
+.pacman-actions button { min-height: 48px; font-size: 16px; }
+.pacman-actions [hidden] { display: none; }
+.pacman-pad { display: grid; grid-template-columns: repeat(3, 60px); gap: 6px; justify-content: center; margin: 16px auto; }
+.pacman-pad button { min-height: 52px; border: 2px solid #6579d9; border-radius: 14px; background: #182450; color: #fff; font-size: 26px; touch-action: manipulation; cursor: pointer; }
+.pacman-pad button:first-child { grid-column: 2; }
+.pacman-pad button:nth-child(2) { grid-column: 1; }
+.pacman-pad button:focus-visible { outline: 3px solid #d18e00; outline-offset: 3px; }
+.pacman-pad button:active { background: #3b4e96; }
+.pacman-help { font-size: 16px; line-height: 1.6; text-align: center; }
