@@ -11,6 +11,7 @@ function request(body: unknown): Request {
 
 function providerResponse(questions: QuizQuestion[]): Response {
   return Response.json({
+    object: "response",
     output: [{
       type: "message",
       content: [{ type: "output_text", text: JSON.stringify({ questions }) }],
@@ -49,7 +50,10 @@ describe("endless quiz API", () => {
     expect(response.headers.get("content-type")).toContain("application/json");
     expect(await response.json()).toEqual({ questions });
     expect(upstreamBody?.model).toBe("gpt-6-luna");
+    expect(upstreamBody?.reasoning).toEqual({ effort: "high" });
     expect(upstreamBody?.store).toBe(false);
+    expect(upstreamBody?.instructions).toContain("vocabulary, reading level, and factual detail appropriate for this age");
+    expect(upstreamBody?.input).toBe(JSON.stringify({ age: 8, topic: "space", count: 5 }));
     expect(upstreamBody?.text).toMatchObject({ format: { type: "json_schema", strict: true, name: "endless_quiz" } });
   });
 
