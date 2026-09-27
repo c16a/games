@@ -1,4 +1,5 @@
 import type { GameContext, GameInstance } from "../../platform/game";
+import { QUESTION_COUNTS } from "./config";
 
 interface QuizQuestion {
   question: string;
@@ -107,7 +108,7 @@ export async function mount({ container, exit, kaplayReady, signal }: GameContex
           <label class="quiz-field" for="quiz-count">
             <span>How many questions?</span>
             <select id="quiz-count" name="count" required>
-              ${Array.from({ length: 20 }, (_, index) => `<option value="${index + 1}"${index === 4 ? " selected" : ""}>${index + 1} ${index === 0 ? "question" : "questions"}</option>`).join("")}
+              ${QUESTION_COUNTS.map((count) => `<option value="${count}"${count === 5 ? " selected" : ""}>${count} questions</option>`).join("")}
             </select>
           </label>
         </div>

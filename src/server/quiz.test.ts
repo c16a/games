@@ -28,21 +28,26 @@ function question(overrides: Partial<QuizQuestion> = {}): QuizQuestion {
   };
 }
 
+function validQuestions(count = 5): QuizQuestion[] {
+  return Array.from({ length: count }, (_, index) => question({ question: `Quiz question ${index + 1}?` }));
+}
+
 describe("endless quiz API", () => {
   test("returns strict JSON and asks gpt-6-luna for structured output", async () => {
     let upstreamBody: Record<string, unknown> | undefined;
+    const questions = validQuestions();
     const handler = createQuizHandler({
       apiKey: "test-key",
       fetcher: async (_input, init) => {
         upstreamBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
-        return providerResponse([question(), question({ question: "Which planet has rings?", correctOptionIndex: 3 })]);
+        return providerResponse(questions);
       },
     });
 
-    const response = await handler(request({ age: 8, topic: "space", count: 2 }), "127.0.0.1");
+    const response = await handler(request({ age: 8, topic: "space", count: 5 }), "127.0.0.1");
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
-    expect(await response.json()).toEqual({ questions: [question(), question({ question: "Which planet has rings?", correctOptionIndex: 3 })] });
+    expect(await response.json()).toEqual({ questions });
     expect(upstreamBody?.model).toBe("gpt-6-luna");
     expect(upstreamBody?.store).toBe(false);
     expect(upstreamBody?.text).toMatchObject({ format: { type: "json_schema", strict: true, name: "endless_quiz" } });
@@ -51,8 +56,13 @@ describe("endless quiz API", () => {
   test("rejects invalid age, topic, and question count with JSON errors", async () => {
     const handler = createQuizHandler({ apiKey: "test-key", fetcher: async () => providerResponse([question()]) });
     for (const body of [
-      { age: 3, topic: "space", count: 1 },
-      { age: 10, topic: " ", count: 1 },
+      { age: 3, topic: "space", count: 5 },
+      { age: 10, topic: " ", count: 5 },
+      { age: 10, topic: "space", count: 1 },
+      { age: 10, topic: "space", count: 2 },
+      { age: 10, topic: "space", count: 3 },
+      { age: 10, topic: "space", count: 4 },
+      { age: 10, topic: "space", count: 6 },
       { age: 10, topic: "space", count: 21 },
     ]) {
       const response = await handler(request(body), "client");
@@ -86,29 +96,38 @@ describe("endless quiz API", () => {
 
   test("rejects generated quizzes with the wrong count, option count, or answer index", async () => {
     const wrongCount = createQuizHandler({ apiKey: "test-key", fetcher: async () => providerResponse([question()]) });
-    expect((await wrongCount(request({ age: 8, topic: "space", count: 2 }))).status).toBe(502);
+    expect((await wrongCount(request({ age: 8, topic: "space", count: 5 }))).status).toBe(502);
 
     const wrongOptionCount = createQuizHandler({
       apiKey: "test-key",
-      fetcher: async () => providerResponse([question({ options: ["Mars", "Venus", "Earth", "Jupiter", "Saturn"] as unknown as QuizQuestion["options"] })]),
+      fetcher: async () => providerResponse([
+        question({ options: ["Mars", "Venus", "Earth", "Jupiter", "Saturn"] as unknown as QuizQuestion["options"] }),
+        ...validQuestions(4),
+      ]),
     });
-    expect((await wrongOptionCount(request({ age: 8, topic: "space", count: 1 }))).status).toBe(502);
+    expect((await wrongOptionCount(request({ age: 8, topic: "space", count: 5 }))).status).toBe(502);
 
-    const wrongAnswerIndex = createQuizHandler({ apiKey: "test-key", fetcher: async () => providerResponse([question({ correctOptionIndex: 4 })]) });
-    expect((await wrongAnswerIndex(request({ age: 8, topic: "space", count: 1 }))).status).toBe(502);
+    const wrongAnswerIndex = createQuizHandler({
+      apiKey: "test-key",
+      fetcher: async () => providerResponse([question({ correctOptionIndex: 4 }), ...validQuestions(4)]),
+    });
+    expect((await wrongAnswerIndex(request({ age: 8, topic: "space", count: 5 }))).status).toBe(502);
 
-    const repeatedOptions = createQuizHandler({ apiKey: "test-key", fetcher: async () => providerResponse([question({ options: ["Mars", "Venus", "Mars", "Jupiter"] })]) });
-    expect((await repeatedOptions(request({ age: 8, topic: "space", count: 1 }))).status).toBe(502);
+    const repeatedOptions = createQuizHandler({
+      apiKey: "test-key",
+      fetcher: async () => providerResponse([question({ options: ["Mars", "Venus", "Mars", "Jupiter"] }), ...validQuestions(4)]),
+    });
+    expect((await repeatedOptions(request({ age: 8, topic: "space", count: 5 }))).status).toBe(502);
   });
 
   test("reports missing credentials and upstream failures as JSON", async () => {
     const missingKey = createQuizHandler({ apiKey: "" });
-    const unavailable = await missingKey(request({ age: 8, topic: "space", count: 1 }));
+    const unavailable = await missingKey(request({ age: 8, topic: "space", count: 5 }));
     expect(unavailable.status).toBe(503);
     expect(await unavailable.json()).toMatchObject({ error: { code: "service_unavailable" } });
 
     const upstreamFailure = createQuizHandler({ apiKey: "test-key", fetcher: async () => new Response("no", { status: 429 }) });
-    const failed = await upstreamFailure(request({ age: 8, topic: "space", count: 1 }));
+    const failed = await upstreamFailure(request({ age: 8, topic: "space", count: 5 }));
     expect(failed.status).toBe(503);
     expect(await failed.json()).toMatchObject({ error: { code: "upstream_error" } });
   });

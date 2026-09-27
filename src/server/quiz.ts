@@ -1,3 +1,5 @@
+import { QUESTION_COUNTS } from "../games/endless-quiz/config";
+
 export const MAX_QUESTIONS = 20;
 export const MAX_TOPIC_LENGTH = 80;
 const MAX_REQUEST_BYTES = 16 * 1024;
@@ -130,7 +132,7 @@ function validateQuizRequest(value: unknown): QuizRequest | undefined {
   const input = value as Record<string, unknown>;
   const topic = typeof input.topic === "string" ? input.topic.trim() : "";
   if (!Number.isInteger(input.age) || (input.age as number) < 4 || (input.age as number) > 18) return undefined;
-  if (!Number.isInteger(input.count) || (input.count as number) < 1 || (input.count as number) > MAX_QUESTIONS) return undefined;
+  if (!Number.isInteger(input.count) || !QUESTION_COUNTS.includes(input.count as (typeof QUESTION_COUNTS)[number])) return undefined;
   if (topic.length < 2 || topic.length > MAX_TOPIC_LENGTH) return undefined;
   return { age: input.age as number, topic, count: input.count as number };
 }
@@ -190,7 +192,7 @@ export function createQuizHandler(options: QuizHandlerOptions = {}) {
     if (body.error) return body.error;
     const input = validateQuizRequest(body.value);
     if (!input) {
-      return errorResponse("invalid_request", "Choose an age from 4 to 18, a topic up to 80 characters, and 1 to 20 questions.", 400);
+      return errorResponse("invalid_request", "Choose an age from 4 to 18, a topic up to 80 characters, and 5, 10, 15, or 20 questions.", 400);
     }
     if (!apiKey) return errorResponse("service_unavailable", "Quiz generation is not configured yet.", 503);
     if (!limiter.allow(clientId)) {
