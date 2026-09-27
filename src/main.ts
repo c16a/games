@@ -195,6 +195,16 @@ const games = [
     accent: "#e8590c",
   },
   {
+    id: "endless-quiz",
+    engine: "kaplay",
+    load: () => import("./games/endless-quiz"),
+    name: "Endless Quiz",
+    description: "Pick a topic and see how many questions you can answer!",
+    badge: "Trivia",
+    icon: "❓",
+    accent: "#845ef7",
+  },
+  {
     id: "chess",
     engine: "kaplay",
     load: () => import("./games/chess"),
